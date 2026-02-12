@@ -15,6 +15,10 @@ migrate();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 const ROLES = {
   ADMIN: 'admin',
   SUPERVISOR: 'supervisor',
@@ -92,6 +96,7 @@ app.use(
     secret: process.env.SESSION_SECRET || 'change-me-in-prod',
     resave: false,
     saveUninitialized: false,
+    proxy: process.env.NODE_ENV === 'production',
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
