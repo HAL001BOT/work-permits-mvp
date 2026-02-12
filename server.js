@@ -691,7 +691,7 @@ function ensurePdfSpace(doc, needed = 40) {
   if (doc.y + needed > bottom) doc.addPage();
 }
 
-function drawHeader(doc, subtitle) {
+function drawHeader(doc, title, subline) {
   const startY = 44;
   doc.save();
   doc.rect(0, 0, doc.page.width, 125).fill(BRAND.bgSoft);
@@ -704,8 +704,8 @@ function drawHeader(doc, subtitle) {
   }
 
   const textX = 50;
-  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(20).text(subtitle, textX, startY + 2);
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', textX, startY + 34);
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(20).text(title, textX, startY + 2);
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(12).text(subline, textX, startY + 34);
   doc.y = 145;
 }
 
@@ -760,12 +760,13 @@ function generatePermitPdf(res, permit) {
   res.setHeader('Content-Disposition', `attachment; filename="${safeFileBase}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, `${safeFileBase}.pdf`);
+  drawHeader(doc, 'General safe work permit', permitNo);
   const blockY = doc.y;
   doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
 
-  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, blockY + 14, { width: 465 });
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Permit No: ${permitNo} • Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 46, { width: 465 });
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text('General safe work permit', 64, blockY + 14, { width: 465 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 44, { width: 465 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', 64, blockY + 62, { width: 465 });
   doc.y = blockY + 104;
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
   doc.text(`Site: ${permit.site || '-'}`);
