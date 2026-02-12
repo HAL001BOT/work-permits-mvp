@@ -60,9 +60,26 @@
         <table>
           <thead><tr><th>ID</th><th>Permit Number</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th></tr></thead>
           <tbody>
-            <% permits.forEach(p => { %>
+            <%
+              const childMap = {};
+              permits.filter(p => p.parent_permit_id).forEach(c => {
+                if (!childMap[c.parent_permit_id]) childMap[c.parent_permit_id] = [];
+                childMap[c.parent_permit_id].push(c);
+              });
+              const parents = permits.filter(p => !p.parent_permit_id);
+            %>
+
+            <% parents.forEach(p => {
+                 const children = childMap[p.id] || [];
+                 const hasChildren = children.length > 0;
+            %>
               <tr>
-                <td><%= p.id %></td>
+                <td>
+                  <% if (hasChildren) { %>
+                    <button type="button" class="button ghost" style="padding:2px 8px;" data-toggle="children-<%= p.id %>" aria-expanded="false">+</button>
+                  <% } %>
+                  <%= p.id %>
+                </td>
                 <td><strong><%= p.permit_number || p.title %></strong></td>
                 <td><%= p.site %></td>
                 <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
@@ -80,12 +97,48 @@
                   </div>
                 </td>
               </tr>
+
+              <% children.forEach(c => { %>
+                <tr class="child-row child-of-<%= p.id %>" style="display:none; background:#f8fafc;">
+                  <td style="padding-left:34px;">↳ <%= c.id %></td>
+                  <td><strong><%= c.permit_number || c.title %></strong></td>
+                  <td><%= c.site %></td>
+                  <td><span class="status-pill status-<%= c.status %>"><%= c.status %></span></td>
+                  <td><%= c.permit_date %></td>
+                  <td><%= c.updated_at %></td>
+                  <td><%= c.updated_by_name %></td>
+                  <td>
+                    <div class="row gap wrap">
+                      <a href="/permits/<%= c.id %>">View</a>
+                      <% if (c.actions.canEdit) { %><a href="/permits/<%= c.id %>/edit">Edit</a><% } %>
+                      <% if (Number(c.revision || 0) > 1) { %><a href="/permits/<%= c.id %>/audit">Audit</a><% } %>
+                      <% if (c.actions.canDelete) { %>
+                        <form method="post" action="/permits/<%= c.id %>/delete" onsubmit="return confirm('Delete permit #<%= c.id %>?');"><button type="submit" class="danger-link">Delete</button></form>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
             <% }) %>
-            <% if (!permits.length) { %><tr><td colspan="8" class="muted">No permits found.</td></tr><% } %>
+
+            <% if (!parents.length) { %><tr><td colspan="8" class="muted">No permits found.</td></tr><% } %>
           </tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <script>
+    document.querySelectorAll('[data-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-toggle').replace('children-', '');
+        const rows = document.querySelectorAll('.child-of-' + key);
+        const expanded = btn.getAttribute('aria-expanded') === 'true';
+        rows.forEach(r => r.style.display = expanded ? 'none' : 'table-row');
+        btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        btn.textContent = expanded ? '+' : '−';
+      });
+    });
+  </script>
 </body>
 </html>
