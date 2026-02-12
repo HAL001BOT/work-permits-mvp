@@ -816,13 +816,6 @@ function generatePermitPdf(res, permit) {
   res.setHeader('Content-Disposition', `attachment; filename="${safeFileBase}.pdf"`);
   doc.pipe(res);
 
-  let pageNumber = 1;
-  drawFooterCurrentPage(doc, generatedAt, pageNumber);
-  doc.on('pageAdded', () => {
-    pageNumber += 1;
-    drawFooterCurrentPage(doc, generatedAt, pageNumber);
-  });
-
   drawHeader(doc, 'General safe work permit', permitNo);
   const blockY = doc.y;
   doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
@@ -843,6 +836,8 @@ function generatePermitPdf(res, permit) {
 
   renderPermitFieldsPdf(doc, permit);
 
+  // Draw footer once on current page to avoid runtime page-buffer issues in production.
+  drawFooterCurrentPage(doc, generatedAt, 1);
   doc.end();
 }
 
