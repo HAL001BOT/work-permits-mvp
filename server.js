@@ -851,7 +851,7 @@ app.post('/permits', requireAuth, (req, res) => {
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
   const permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
   permitFields.general_permit_no = generateNextGswpTitle();
-  const finalDescription = (description || '').trim() || templateTextForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
+  const finalDescription = (description || '').trim();
   const startDate = permitFields.start_date || '';
 
   if (!permit_date) {
