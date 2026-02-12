@@ -7,8 +7,8 @@ cd "$ROOT_DIR"
 echo "Installing dependencies..."
 npm install
 
-echo "Running DB migrations + seed admin..."
-node scripts/seed-admin.js
+echo "Running DB migrations + seed users..."
+node scripts/seed-users.js
 
 echo "Setup complete."
 echo "Run: npm start"

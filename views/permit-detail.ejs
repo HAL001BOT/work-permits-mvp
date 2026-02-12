@@ -10,14 +10,14 @@
   <main class="container">
     <header class="page-header row wrap space-between gap">
       <div>
-        <h1>Permit #<%= permit.id %></h1>
-        <p class="muted"><%= permit.title %></p>
+        <h1>Permit #<%= permit.id %> <span class="status-pill status-<%= permit.status %>"><%= permit.status %></span></h1>
+        <p class="muted"><%= permit.title %> · revision r<%= permit.revision %> · <%= permit.is_locked ? 'Locked' : 'Editable' %></p>
       </div>
       <div class="row gap wrap">
         <a class="button ghost" href="/permits">Back</a>
         <a class="button" href="/permits/<%= permit.id %>/audit">Audit Trail</a>
         <a class="button" href="/permits/<%= permit.id %>/export.pdf">Export PDF</a>
-        <a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a>
+        <% if (permissions.canEdit) { %><a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a><% } %>
       </div>
     </header>
 
@@ -26,18 +26,69 @@
         <h2 class="section-title">Permit Details</h2>
         <dl class="detail-list">
           <div><dt>Site</dt><dd><%= permit.site %></dd></div>
-          <div><dt>Status</dt><dd><span class="status-pill status-<%= permit.status %>"><%= permit.status %></span></dd></div>
           <div><dt>Permit Date</dt><dd><%= permit.permit_date %></dd></div>
-          <div><dt>Created At</dt><dd><%= permit.created_at %></dd></div>
-          <div><dt>Updated At</dt><dd><%= permit.updated_at %></dd></div>
           <div><dt>Created By</dt><dd><%= permit.created_by_name %></dd></div>
           <div><dt>Updated By</dt><dd><%= permit.updated_by_name %></dd></div>
+          <div><dt>Approved By</dt><dd><%= permit.approver_name || '—' %></dd></div>
+          <div><dt>Approved At</dt><dd><%= permit.approved_at || '—' %></dd></div>
+          <div><dt>Signature</dt><dd><%= permit.signature_text || '—' %></dd></div>
         </dl>
+      </article>
+
+      <article class="card">
+        <h2 class="section-title">Workflow Actions</h2>
+        <% if (!permissions.transitions.length) { %>
+          <p class="muted">No transitions available for your role.</p>
+        <% } else { %>
+          <div class="row gap wrap">
+            <% if (permissions.transitions.includes('submit')) { %>
+              <form method="post" action="/permits/<%= permit.id %>/transition"><input type="hidden" name="action" value="submit" /><button class="button primary" type="submit">Submit</button></form>
+            <% } %>
+            <% if (permissions.transitions.includes('approve')) { %>
+              <form method="post" action="/permits/<%= permit.id %>/transition" class="row gap wrap">
+                <input type="hidden" name="action" value="approve" />
+                <input name="signature_text" placeholder="Type signature (name/ack)" required />
+                <button class="button primary" type="submit">Approve + Sign</button>
+              </form>
+            <% } %>
+            <% if (permissions.transitions.includes('close')) { %>
+              <form method="post" action="/permits/<%= permit.id %>/transition"><input type="hidden" name="action" value="close" /><button class="button" type="submit">Close</button></form>
+            <% } %>
+            <% if (permissions.transitions.includes('reopen')) { %>
+              <form method="post" action="/permits/<%= permit.id %>/transition" onsubmit="return confirm('Reopen this permit and increment revision?');"><input type="hidden" name="action" value="reopen" /><button class="button ghost" type="submit">Reopen</button></form>
+            <% } %>
+          </div>
+        <% } %>
       </article>
 
       <article class="card">
         <h2 class="section-title">Description</h2>
         <p class="description"><%= permit.description || 'No description provided.' %></p>
+      </article>
+
+      <article class="card">
+        <h2 class="section-title">Attachments & Evidence</h2>
+        <% if (permissions.canUpload) { %>
+          <form method="post" action="/permits/<%= permit.id %>/attachments" enctype="multipart/form-data" class="row gap wrap">
+            <input type="file" name="attachment" required />
+            <button class="button" type="submit">Upload</button>
+          </form>
+        <% } %>
+        <% if (!attachments.length) { %>
+          <p class="muted">No attachments uploaded.</p>
+        <% } else { %>
+          <ul class="activity-list">
+            <% attachments.forEach(a => { %>
+              <li>
+                <a href="/permits/<%= permit.id %>/attachments/<%= a.id %>"><%= a.original_name %></a>
+                <span class="muted">(<%= a.size_bytes %> bytes) by <%= a.uploaded_by_name %> on <%= a.created_at %></span>
+                <% if (permissions.canDeleteAttachment) { %>
+                  <form method="post" action="/permits/<%= permit.id %>/attachments/<%= a.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this attachment?');"><button type="submit" class="danger-link">Delete</button></form>
+                <% } %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
       </article>
 
       <article class="card">

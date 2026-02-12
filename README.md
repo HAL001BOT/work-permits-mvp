@@ -6,19 +6,26 @@ A lightweight multi-user work permits app for local LAN demos.
 
 - Multi-user login with hashed passwords (`bcryptjs`)
 - Session-based authentication (`express-session` + SQLite session store)
-- Permit CRUD
-- Persistent storage with SQLite (`better-sqlite3`)
-- Filtering by status, site, and date range
-- Audit trail for create/update/delete (who + when + old/new values)
+- **RBAC roles:** `admin`, `supervisor`, `requester`, `viewer`
+- **Server-side permission enforcement** for create/edit/delete/transition/upload actions
+- **Approval workflow** with explicit transitions:
+  - `draft -> submitted` (requester owner, supervisor, admin)
+  - `submitted -> approved` (supervisor/admin only, signature required)
+  - `approved -> closed` (supervisor/admin only)
+  - `approved|closed -> draft` via reopen (supervisor/admin only, revision increments)
+- **Digital signatures:** approval captures signature text + approver name + timestamp
+- **Record locking:** permits lock after approve/close; key fields become non-editable until reopened
+- **Attachments/evidence:** upload to local storage with safe naming + size/type checks, list/download, optional delete (supervisor/admin)
+- Comprehensive audit trail for create/update/delete, transitions, signatures, and attachment operations
 - CSV export for permit records
-- Branded PDF exports for single permits and filtered summaries (`pdfkit`) with logo/header cards, themed tables, and footer metadata
-- Improved dashboard, forms, table view, and permit detail page for easier visualization
+- Branded single-permit PDF export (`pdfkit`)
 
 ## Tech Stack
 
 - Node.js + Express
 - EJS server-rendered views
-- SQLite database
+- SQLite database (`better-sqlite3`)
+- Multer for file uploads
 - PDF generation with `pdfkit`
 
 ## Quick Start
@@ -34,34 +41,48 @@ Then open:
 - `http://<your-lan-ip>:3000` (LAN)
 - `http://localhost:3000` (local)
 
-## Using Exports and Views
+## Default Seeded Users
 
-- **Dashboard:** `/permits` includes filter controls, status summary cards, and action links.
-- **Permit detail:** click **View** on any permit row to open a readable detail page.
-- **Single permit PDF:** click **PDF** in a permit row (or open `/permits/:id/export.pdf`) for a branded permit sheet with section cards and detailed metadata.
-- **Filtered summary PDF:** use dashboard filters then click **Export PDF Summary** (or open `/permits/export.pdf` with the same query string) for a themed report table with totals and filters.
-- **CSV export:** still available via **Export CSV** with the active filters.
+By default, setup seeds one user for each role:
 
-## Seed Admin User
+- `admin` / `permit123!`
+- `supervisor` / `permit123!`
+- `requester` / `permit123!`
+- `viewer` / `permit123!`
 
-Default seeded admin credentials:
+⚠️ Change all passwords for real environments.
 
-- Username: `admin`
-- Password: `admin123!`
+You can override usernames/passwords with env vars before running setup:
 
-⚠️ Change password quickly for real demos.
+- `SEED_DEFAULT_PASS`
+- `SEED_ADMIN_USER`, `SEED_ADMIN_PASS`
+- `SEED_SUPERVISOR_USER`, `SEED_SUPERVISOR_PASS`
+- `SEED_REQUESTER_USER`, `SEED_REQUESTER_PASS`
+- `SEED_VIEWER_USER`, `SEED_VIEWER_PASS`
 
-You can override seed credentials during setup:
+## Workflow Usage
 
-```bash
-SEED_ADMIN_USER=supervisor SEED_ADMIN_PASS='StrongPass123!' bash scripts/setup.sh
-```
+1. Requester creates permit (starts in `draft`).
+2. Requester submits permit when ready.
+3. Supervisor/admin approves permit and enters signature text.
+4. Supervisor/admin closes permit when work is complete.
+5. If changes are needed after approval/closure, supervisor/admin reopens permit (new revision, unlocked).
+
+## Attachments
+
+- Upload evidence files on permit detail page.
+- File constraints:
+  - max size: 10 MB
+  - allowed MIME: PDF, JPG/PNG/GIF, TXT, DOC/DOCX
+- Files are stored locally in `data/uploads` with randomized stored names.
+- Download is available from permit detail page.
+- Delete attachment is available to supervisor/admin.
 
 ## Manual Setup (without script)
 
 ```bash
 npm install
-node scripts/seed-admin.js
+node scripts/seed-users.js
 npm start
 ```
 
@@ -70,20 +91,21 @@ npm start
 - `PORT` (default `3000`)
 - `SESSION_SECRET` (strong random value recommended)
 - `NODE_ENV=production` (enables secure cookies)
-- `SEED_ADMIN_USER` (only for seeding script)
-- `SEED_ADMIN_PASS` (only for seeding script)
 
-## Notes for Local LAN Demo Safety
+## DB / Migration Notes
 
-- Passwords are hashed with bcrypt
-- Sessions are HttpOnly and SameSite=Lax
-- Basic security headers via `helmet`
+`db.js` includes migration steps for:
+
+- base schema
+- RBAC role normalization
+- workflow/signature/locking/revision columns
+- attachments table + index
 
 ## Project Structure
 
 - `server.js` - Express app and routes
 - `db.js` - SQLite connection + migrations
 - `scripts/setup.sh` - install + seed helper
-- `scripts/seed-admin.js` - creates default admin if missing
+- `scripts/seed-users.js` - seeds role users
 - `views/` - EJS templates
-- `public/css/` - basic styling
+- `public/css/` - styles
