@@ -9,8 +9,13 @@
 <body>
   <main class="container narrow auth-layout">
     <section class="card">
-      <h1>Work Permits Login</h1>
-      <p class="muted">Sign in to manage permits, exports, and audit history.</p>
+      <div class="row gap-md" style="align-items:center; margin-bottom: 10px;">
+        <img src="/img/sachem.gif" alt="Sachem" class="header-logo" />
+        <div>
+          <h1>Work Permits Login</h1>
+          <p class="muted">Sign in to manage permits, exports, and audit history.</p>
+        </div>
+      </div>
       <% if (error) { %><p class="error"><%= error %></p><% } %>
       <form method="post" action="/login" class="form-stack">
         <label>Username
