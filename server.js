@@ -836,8 +836,6 @@ function generatePermitPdf(res, permit) {
 
   renderPermitFieldsPdf(doc, permit);
 
-  // Draw footer once on current page to avoid runtime page-buffer issues in production.
-  drawFooterCurrentPage(doc, generatedAt, 1);
   doc.end();
 }
 
