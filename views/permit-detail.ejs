@@ -117,31 +117,6 @@
       </article>
 
       <article class="card">
-        <h2 class="section-title">Attachments & Evidence</h2>
-        <% if (permissions.canUpload) { %>
-          <form method="post" action="/permits/<%= permit.id %>/attachments" enctype="multipart/form-data" class="row gap wrap">
-            <input type="file" name="attachment" required />
-            <button class="button" type="submit">Upload</button>
-          </form>
-        <% } %>
-        <% if (!attachments.length) { %>
-          <p class="muted">No attachments uploaded.</p>
-        <% } else { %>
-          <ul class="activity-list">
-            <% attachments.forEach(a => { %>
-              <li>
-                <a href="/permits/<%= permit.id %>/attachments/<%= a.id %>"><%= a.original_name %></a>
-                <span class="muted">(<%= a.size_bytes %> bytes) by <%= a.uploaded_by_name %> on <%= a.created_at %></span>
-                <% if (permissions.canDeleteAttachment) { %>
-                  <form method="post" action="/permits/<%= permit.id %>/attachments/<%= a.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this attachment?');"><button type="submit" class="danger-link">Delete</button></form>
-                <% } %>
-              </li>
-            <% }) %>
-          </ul>
-        <% } %>
-      </article>
-
-      <article class="card">
         <h2 class="section-title">Recent Activity</h2>
         <% if (!recentAudit.length) { %>
           <p class="muted">No audit events yet.</p>
