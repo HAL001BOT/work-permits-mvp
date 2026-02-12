@@ -335,6 +335,11 @@ function canDeletePermit(user) {
   return hasAnyRole(user, [ROLES.ADMIN]);
 }
 
+function requireAdmin(req, res, next) {
+  if (!hasAnyRole(req.session.user, [ROLES.ADMIN])) return res.status(403).send('Forbidden');
+  next();
+}
+
 function transitionActions(user, permit) {
   const actions = [];
   const isOwnerRequester = user.role === ROLES.REQUESTER && permit.created_by === user.id;
@@ -624,6 +629,33 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/logout', requireAuth, (req, res) => req.session.destroy(() => res.redirect('/login')));
+
+app.get('/admin/users', requireAuth, requireAdmin, (req, res) => {
+  const users = db.prepare(`SELECT id, username, role, created_at FROM users ORDER BY created_at DESC`).all();
+  const success = req.query.created ? 'User created successfully.' : null;
+  res.render('admin-users', { users, error: null, success, roles: Object.values(ROLES) });
+});
+
+app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
+  const { username = '', password = '', role = '' } = req.body;
+  const cleanUsername = String(username).trim();
+  const cleanRole = String(role).trim();
+
+  const users = db.prepare(`SELECT id, username, role, created_at FROM users ORDER BY created_at DESC`).all();
+
+  if (!cleanUsername || !password || !Object.values(ROLES).includes(cleanRole)) {
+    return res.status(400).render('admin-users', { users, error: 'Username, password, and valid role are required.', success: null, roles: Object.values(ROLES) });
+  }
+
+  const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(cleanUsername);
+  if (exists) {
+    return res.status(400).render('admin-users', { users, error: 'Username already exists.', success: null, roles: Object.values(ROLES) });
+  }
+
+  const hash = bcrypt.hashSync(password, 12);
+  db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run(cleanUsername, hash, cleanRole);
+  return res.redirect('/admin/users?created=1');
+});
 
 app.get('/permits', requireAuth, (req, res) => {
   const { filters, where, params } = getFilterContext(req.query);

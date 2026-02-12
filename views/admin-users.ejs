@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Manage Users</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header row wrap space-between gap">
+      <div>
+        <h1>Manage Users</h1>
+        <p class="muted">Admin-only user creation.</p>
+      </div>
+      <a class="button ghost" href="/permits">Back to Dashboard</a>
+    </header>
+
+    <% if (error) { %><p class="error"><%= error %></p><% } %>
+    <% if (success) { %><p style="color:#166534;font-weight:600;"><%= success %></p><% } %>
+
+    <section class="card">
+      <h2 class="section-title">Create User</h2>
+      <form method="post" action="/admin/users" class="grid-form">
+        <label>Username
+          <input name="username" required />
+        </label>
+        <label>Password
+          <input type="password" name="password" required />
+        </label>
+        <label>Role
+          <select name="role" required>
+            <option value="">Select role...</option>
+            <% roles.forEach(r => { %><option value="<%= r %>"><%= r %></option><% }) %>
+          </select>
+        </label>
+        <div class="row gap wrap"><button type="submit" class="button primary">Create User</button></div>
+      </form>
+    </section>
+
+    <section class="table-card card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th></tr></thead>
+          <tbody>
+            <% users.forEach(u => { %>
+              <tr>
+                <td><%= u.id %></td>
+                <td><%= u.username %></td>
+                <td><%= u.role %></td>
+                <td><%= u.created_at %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

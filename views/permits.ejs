@@ -18,6 +18,7 @@
       </div>
       <div class="row gap wrap">
         <span class="badge">Signed in as <strong><%= user.username %></strong> (<%= user.role %>)</span>
+        <% if (user.role === 'admin') { %><a class="button" href="/admin/users">Manage Users</a><% } %>
         <form method="post" action="/logout"><button type="submit" class="button ghost">Logout</button></form>
       </div>
     </header>
