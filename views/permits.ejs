@@ -58,12 +58,12 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Permit Number</th><th>Type</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th></tr></thead>
           <tbody>
             <% permits.forEach(p => { %>
               <tr>
                 <td><%= p.id %></td>
-                <td><strong><%= p.title %></strong></td>
+                <td><strong><%= p.permit_number || p.title %></strong></td>
                 <td><%= (p.permit_type === 'general_work_safe' ? 'GSWP' : (p.permit_type || '')) %><% if (p.parent_permit_id) { %> (Parent <%= p.parent_permit_id %>)<% } %></td>
                 <td><%= p.site %></td>
                 <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>

@@ -737,14 +737,18 @@ app.get('/permits', requireAuth, (req, res) => {
        ORDER BY p.updated_at DESC`
     )
     .all(...params)
-    .map((p) => ({
-      ...p,
-      actions: {
-        canEdit: canEditFields(req.session.user, p),
-        canDelete: canDeletePermit(req.session.user),
-        canTransition: transitionActions(req.session.user, p),
-      },
-    }));
+    .map((p) => {
+      const fields = parsePermitFieldsJson(p.permit_fields_json);
+      return {
+        ...p,
+        permit_number: fields.general_permit_no || '',
+        actions: {
+          canEdit: canEditFields(req.session.user, p),
+          canDelete: canDeletePermit(req.session.user),
+          canTransition: transitionActions(req.session.user, p),
+        },
+      };
+    });
 
   const statusCounts = statusOptions().reduce((acc, status) => ({ ...acc, [status]: permits.filter((p) => p.status === status).length }), {});
 
