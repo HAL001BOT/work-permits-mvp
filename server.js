@@ -772,8 +772,9 @@ app.post('/logout', requireAuth, (req, res) => req.session.destroy(() => res.red
 
 app.get('/admin/users', requireAuth, requireAdmin, (req, res) => {
   const users = db.prepare(`SELECT id, username, role, created_at FROM users ORDER BY created_at DESC`).all();
-  const success = req.query.created ? 'User created successfully.' : null;
-  res.render('admin-users', { users, error: null, success, roles: Object.values(ROLES) });
+  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : null);
+  const error = req.query.pwerror ? 'Could not change password.' : null;
+  res.render('admin-users', { users, error, success, roles: Object.values(ROLES) });
 });
 
 app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
@@ -795,6 +796,19 @@ app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
   const hash = bcrypt.hashSync(password, 12);
   db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run(cleanUsername, hash, cleanRole);
   return res.redirect('/admin/users?created=1');
+});
+
+app.post('/admin/users/:id(\\d+)/password', requireAuth, requireAdmin, (req, res) => {
+  const { password = '' } = req.body;
+  const newPass = String(password);
+  if (!newPass || newPass.length < 6) return res.status(400).redirect('/admin/users?pwerror=1');
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).redirect('/admin/users?pwerror=1');
+
+  const hash = bcrypt.hashSync(newPass, 12);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.params.id);
+  return res.redirect('/admin/users?pwchanged=1');
 });
 
 app.get('/permits', requireAuth, (req, res) => {

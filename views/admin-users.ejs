@@ -41,7 +41,7 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th></tr></thead>
+          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th>Change Password</th></tr></thead>
           <tbody>
             <% users.forEach(u => { %>
               <tr>
@@ -49,6 +49,12 @@
                 <td><%= u.username %></td>
                 <td><%= u.role %></td>
                 <td><%= u.created_at %></td>
+                <td>
+                  <form method="post" action="/admin/users/<%= u.id %>/password" class="row gap wrap" onsubmit="return confirm('Change password for <%= u.username %>?');">
+                    <input type="password" name="password" placeholder="New password" required minlength="6" />
+                    <button type="submit" class="button">Update</button>
+                  </form>
+                </td>
               </tr>
             <% }) %>
           </tbody>
