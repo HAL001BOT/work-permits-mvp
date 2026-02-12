@@ -32,38 +32,6 @@
       <label>Title
         <input name="title" value="<%= permit?.title || '' %>" readonly />
       </label>
-      <label>Description
-        <textarea name="description" rows="6"><%= permit?.description || '' %></textarea>
-      </label>
-      <label>Site
-        <% if (currentType === 'general_work_safe') { %>
-          <input name="site" value="Cleburne" readonly />
-        <% } else { %>
-          <input name="site" value="<%= permit?.site || '' %>" />
-        <% } %>
-      </label>
-      <label>Permit End Date
-        <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
-      </label>
-
-      <label>Permit Type
-        <input value="<%= permitTypeLabels[currentType] || currentType %>" disabled />
-      </label>
-
-      <% if (currentType === 'general_work_safe') { %>
-        <fieldset>
-          <legend>Section 1 – Additional Work Permits</legend>
-          <p class="muted">Check all additional permits required for this job.</p>
-          <div class="form-stack">
-            <% supplementalPermitTypes.forEach(type => { %>
-              <label class="row gap" style="align-items:center;">
-                <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
-                <span><%= permitTypeLabels[type] %></span>
-              </label>
-            <% }) %>
-          </div>
-        </fieldset>
-      <% } %>
 
       <% if (permitFieldSchema?.length) {
            const grouped = permitFieldSchema.reduce((acc, f) => {
@@ -103,6 +71,36 @@
             </div>
           </fieldset>
         <% }) %>
+      <% } %>
+
+      <label>Site
+        <% if (currentType === 'general_work_safe') { %>
+          <input name="site" value="Cleburne" readonly />
+        <% } else { %>
+          <input name="site" value="<%= permit?.site || '' %>" />
+        <% } %>
+      </label>
+      <label>Permit End Date
+        <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
+      </label>
+
+      <label>Permit Type
+        <input value="<%= permitTypeLabels[currentType] || currentType %>" disabled />
+      </label>
+
+      <% if (currentType === 'general_work_safe') { %>
+        <fieldset>
+          <legend>Section 1 – Additional Work Permits</legend>
+          <p class="muted">Check all additional permits required for this job.</p>
+          <div class="form-stack">
+            <% supplementalPermitTypes.forEach(type => { %>
+              <label class="row gap" style="align-items:center;">
+                <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
+                <span><%= permitTypeLabels[type] %></span>
+              </label>
+            <% }) %>
+          </div>
+        </fieldset>
       <% } %>
 
       <div class="row gap wrap">
