@@ -51,8 +51,17 @@ const PERMIT_TYPE_LABELS = {
   [PERMIT_TYPES.CONFINED_SPACE]: 'Confined Space Permit',
   [PERMIT_TYPES.LOTO]: 'LOTO / Energy Isolation Permit',
   [PERMIT_TYPES.EXCAVATION]: 'Excavation Permit',
-  [PERMIT_TYPES.LINE_BREAK]: 'Line Break Permit',
+  [PERMIT_TYPES.LINE_BREAK]: 'First Break Permit',
   [PERMIT_TYPES.WORKING_HEIGHTS]: 'Working at Heights Permit',
+};
+
+const TEMPLATE_TEXT_BY_TYPE = {
+  [PERMIT_TYPES.GENERAL_WORK_SAFE]: `Template: generalsafework.docx\n\nSection 1 – Additional Work Permits\n- Hot Work Permit (open flames, cutting, welding, grinding, drilling)\n- Confined Space Entry Permit (chemical vessels/tanks or confined areas)\n- Work at Height Permit (4 ft+ without guardrails)\n- Lockout/Tagout Permit (energy isolation)\n- First Break Permit (opening pipe, pumps, vessels)\n\nSection 2 – Work Description\nDescribe scope, location/building, equipment, contractor company, supervisor, shift, work order/project #.\n\nDaily Revalidation\nPermit is revalidated each day (up to 7 days max).`,
+  [PERMIT_TYPES.HOT_WORK]: `Template: EHS&S RC Health & Safety HOT WORK PERMIT 12-14-2022.docx\n\nGeneral Information\n- General Work Permit No.\n- Work by: Sachem personnel or Contractors\n- Additional comments\n\nFire Watch Requirement\n- Fire watch required?\n- Work generates sparks/open flames (drilling/cutting/soldering/grinding/brazing/welding/torching)\n- Fire watch during work and minimum 1 hour after work\n\nHot Work Safety Requirements\n- Fire protection systems operable\n- O2/LEL monitor calibration current\n- 35 ft area clear of flammables/combustibles\n- Initial gas measurements recorded.`,
+  [PERMIT_TYPES.CONFINED_SPACE]: `Template: EHS&S_RC HEALTH & SAFETY CONFINED SPACE PERMIT 08-27-2025.pdf\n\nCapture confined space entry details including:\n- Space identification and location\n- Entry purpose/scope\n- Entrants, attendant, and entry supervisor\n- Atmospheric testing (O2/LEL/toxics), frequency, and results\n- Isolation controls (LOTO, line blanking, ventilation)\n- Rescue plan and communication method\n- Entry start/end authorization signatures.`,
+  [PERMIT_TYPES.LOTO]: `Templates: EHSS LOCKOUT TAG OUT PERMIT 03-20-2025.docx + Lockout Tag Out Form 06-26-2025.docx\n\nGeneral Information\n- LOTO date, expected final date (7 days max), permit linkage\n- Job scope and affected employees notified\n\nEnergy Isolation Verification\n- Electrical / Mechanical / Thermal / Chemical / Hydraulic-Pneumatic\n- Zero energy verification\n- Lock and tag IDs, isolation points, verification initials\n\nSpecial note\n- Include chemical washout verification where applicable.`,
+  [PERMIT_TYPES.LINE_BREAK]: `Template: FORMS MAINTENANCE FIRST BREAK PERMIT 11-21-2022.docx\n\nPre-break checklist\n- Material last contained identified and hazard class confirmed\n- SDS reviewed\n- LOTO completed\n- Line identification confirmed by PM + Shift Supervisor + Contractor\n- Lines drained/vented, cooled, flushed, cleaned\n- Valves/pumps closed, locked, tagged\n\nAll checklist items must be signed/initialed before first break proceeds.`,
+  [PERMIT_TYPES.WORKING_HEIGHTS]: `Template: EHSS_RC HEALTH & SAFETY WORK AT HEIGHT PERMIT 03-07-2025.docx\n\nWork-at-height scope\n- Fixed ladders 24 ft+, manlifts, or other >4 ft without guardrails\n\nInspection / authorization\n- Contractor vs Sachem path (inspection section routing)\n- Harness/lanyard inspection (tags readable, not expired, ANSI Z359, no damage/modification)\n- Work controls and approvals before start.`,
 };
 
 const FIELD_EDITABLE_STATUSES = new Set(['draft', 'submitted']);
@@ -126,6 +135,10 @@ function canCreatePermit(user) {
 
 function permitTypeLabel(type) {
   return PERMIT_TYPE_LABELS[type] || type;
+}
+
+function templateTextForType(type) {
+  return TEMPLATE_TEXT_BY_TYPE[type] || '';
 }
 
 function parseRequiredPermitsJson(value) {
@@ -326,7 +339,7 @@ function syncRequiredChildPermits(parentPermit, requiredTypes, userId) {
     db.prepare(
       `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, parent_permit_id, required_permits_json)
        VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, '[]')`
-    ).run(title, '', parentPermit.site, parentPermit.permit_date, userId, userId, type, parentPermit.id);
+    ).run(title, templateTextForType(type), parentPermit.site, parentPermit.permit_date, userId, userId, type, parentPermit.id);
   }
 }
 
@@ -497,6 +510,7 @@ app.post('/permits', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   const { title, description = '', site, permit_date } = req.body;
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
+  const finalDescription = (description || '').trim() || templateTextForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
   if (!title || !site || !permit_date) {
     return res.status(400).render('permit-form', {
       permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
@@ -512,12 +526,12 @@ app.post('/permits', requireAuth, (req, res) => {
       `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json)
        VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)`
     )
-    .run(title, description, site, permit_date, req.session.user.id, req.session.user.id, PERMIT_TYPES.GENERAL_WORK_SAFE, JSON.stringify(requiredPermits));
+    .run(title, finalDescription, site, permit_date, req.session.user.id, req.session.user.id, PERMIT_TYPES.GENERAL_WORK_SAFE, JSON.stringify(requiredPermits));
 
   const parent = getPermitById(result.lastInsertRowid);
   syncRequiredChildPermits(parent, requiredPermits, req.session.user.id);
 
-  logAudit(result.lastInsertRowid, 'create', null, { title, description, site, status: 'draft', permit_date, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits: requiredPermits, revision: 1 }, req.session.user.id);
+  logAudit(result.lastInsertRowid, 'create', null, { title, description: finalDescription, site, status: 'draft', permit_date, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits: requiredPermits, revision: 1 }, req.session.user.id);
   res.redirect(`/permits/${result.lastInsertRowid}`);
 });
 
@@ -562,6 +576,25 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   syncRequiredChildPermits(updated, requiredPermits, req.session.user.id);
 
   logAudit(req.params.id, 'update', pickSnapshot(permit), pickSnapshot(updated), req.session.user.id);
+  res.redirect(`/permits/${req.params.id}`);
+});
+
+app.post('/permits/:id(\\d+)/populate-template', requireAuth, (req, res) => {
+  const permit = getPermitById(req.params.id);
+  if (!permit) return res.status(404).send('Permit not found');
+  if (!canEditFields(req.session.user, permit)) return res.status(403).send('Forbidden');
+
+  const templateDescription = templateTextForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
+  if (!templateDescription) return res.redirect(`/permits/${req.params.id}`);
+
+  db.prepare(`UPDATE permits SET description = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(
+    templateDescription,
+    req.session.user.id,
+    req.params.id
+  );
+
+  const updated = getPermitById(req.params.id);
+  logAudit(req.params.id, 'populate_template', pickSnapshot(permit), pickSnapshot(updated), req.session.user.id);
   res.redirect(`/permits/${req.params.id}`);
 });
 

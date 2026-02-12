@@ -17,7 +17,12 @@
         <a class="button ghost" href="/permits">Back</a>
         <a class="button" href="/permits/<%= permit.id %>/audit">Audit Trail</a>
         <a class="button" href="/permits/<%= permit.id %>/export.pdf">Export PDF</a>
-        <% if (permissions.canEdit) { %><a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a><% } %>
+        <% if (permissions.canEdit) { %>
+          <a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a>
+          <form method="post" action="/permits/<%= permit.id %>/populate-template" style="display:inline" onsubmit="return confirm('Replace description with template content for this permit type?');">
+            <button type="submit" class="button">Populate from Template</button>
+          </form>
+        <% } %>
       </div>
     </header>
 
