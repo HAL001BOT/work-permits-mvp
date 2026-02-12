@@ -84,6 +84,51 @@ function formatStatusLabel(status) {
   return status[0].toUpperCase() + status.slice(1);
 }
 
+const AUDIT_FIELD_LABELS = {
+  title: 'Title',
+  site: 'Site',
+  permit_date: 'Permit Date',
+  status: 'Status',
+  description: 'Description',
+  created_at: 'Created At',
+  updated_at: 'Updated At',
+  created_by: 'Created By',
+  updated_by: 'Updated By',
+  id: 'ID',
+};
+
+function safeParseJson(value) {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function toDisplayValue(field, value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (field === 'status') return formatStatusLabel(String(value));
+  if (String(field).includes('date') || String(field).endsWith('_at')) return formatDate(value);
+  return String(value);
+}
+
+function toFriendlyChanges(oldValues, newValues) {
+  const oldObj = safeParseJson(oldValues) || {};
+  const newObj = safeParseJson(newValues) || {};
+  const keys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
+
+  return keys
+    .filter((k) => String(oldObj[k] ?? '') !== String(newObj[k] ?? ''))
+    .map((field) => ({
+      field,
+      label: AUDIT_FIELD_LABELS[field] || field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      oldValue: toDisplayValue(field, oldObj[field]),
+      newValue: toDisplayValue(field, newObj[field]),
+    }));
+}
+
 const BRAND = {
   primary: '#0f766e',
   primaryDark: '#115e59',
@@ -495,7 +540,15 @@ app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
        WHERE a.permit_id = ?
        ORDER BY a.changed_at DESC`
     )
-    .all(req.params.id);
+    .all(req.params.id)
+    .map((row) => ({
+      ...row,
+      changedAtPretty: formatDate(row.changed_at),
+      actionLabel: formatStatusLabel(row.action),
+      changes: toFriendlyChanges(row.old_values, row.new_values),
+      oldRaw: row.old_values,
+      newRaw: row.new_values,
+    }));
 
   if (!permit && auditRows.length === 0) return res.status(404).send('Permit not found');
 

@@ -8,34 +8,52 @@
 </head>
 <body>
   <main class="container">
-    <header class="page-header">
-      <h1>Audit Trail: Permit #<%= permitId %></h1>
-      <p><a href="/permits">← Back to permits</a></p>
+    <header class="page-header row space-between wrap gap-md">
+      <div>
+        <h1>Audit Trail: Permit #<%= permitId %></h1>
+        <p class="muted">A readable timeline of what changed and who changed it.</p>
+      </div>
+      <a class="button ghost" href="/permits">← Back to permits</a>
     </header>
 
-    <section class="card table-card">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>When</th><th>User</th><th>Action</th><th>Old Values</th><th>New Values</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% auditRows.forEach(r => { %>
-              <tr>
-                <td><%= r.changed_at %></td>
-                <td><%= r.username %></td>
-                <td><span class="status-pill"><%= r.action %></span></td>
-                <td><pre><%= r.old_values || '' %></pre></td>
-                <td><pre><%= r.new_values || '' %></pre></td>
-              </tr>
-            <% }) %>
-            <% if (!auditRows.length) { %>
-              <tr><td colspan="5" class="muted">No audit records found.</td></tr>
+    <section class="card">
+      <% if (!auditRows.length) { %>
+        <p class="muted">No audit records found.</p>
+      <% } %>
+
+      <div class="audit-list">
+        <% auditRows.forEach(r => { %>
+          <article class="audit-item">
+            <div class="row space-between wrap gap">
+              <div class="row gap wrap">
+                <span class="status-pill status-<%= r.action %>"><%= r.actionLabel %></span>
+                <strong><%= r.username %></strong>
+              </div>
+              <span class="muted"><%= r.changedAtPretty %></span>
+            </div>
+
+            <% if (r.changes && r.changes.length) { %>
+              <div class="table-wrap" style="margin-top:10px;">
+                <table class="audit-change-table">
+                  <thead>
+                    <tr><th>Field</th><th>Before</th><th>After</th></tr>
+                  </thead>
+                  <tbody>
+                    <% r.changes.forEach(c => { %>
+                      <tr>
+                        <td><strong><%= c.label %></strong></td>
+                        <td><%= c.oldValue %></td>
+                        <td><%= c.newValue %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } else { %>
+              <p class="muted" style="margin-top:10px;">No field-level differences available for this entry.</p>
             <% } %>
-          </tbody>
-        </table>
+          </article>
+        <% }) %>
       </div>
     </section>
   </main>

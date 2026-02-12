@@ -163,6 +163,15 @@ pre {
   font-size: 12px;
 }
 
+.audit-list { display: grid; gap: 12px; }
+.audit-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+.audit-change-table th { background: #f0fdf4; }
+
 @media (max-width: 700px) {
   .detail-list div { grid-template-columns: 1fr; gap: 4px; }
 }
