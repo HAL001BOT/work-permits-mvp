@@ -265,18 +265,53 @@ function templateTextForType(type) {
 
 function generateNextGswpTitle() {
   const rows = db
-    .prepare(`SELECT title FROM permits WHERE permit_type = ? AND title LIKE 'SACHEM-GSWP-%'`)
+    .prepare(`SELECT permit_fields_json FROM permits WHERE permit_type = ?`)
     .all(PERMIT_TYPES.GENERAL_WORK_SAFE);
 
   let maxNum = -1;
   for (const row of rows) {
-    const m = String(row.title || '').match(/^SACHEM-GSWP-(\d{5})$/);
+    const permitNo = parsePermitFieldsJson(row.permit_fields_json).general_permit_no || '';
+    const m = String(permitNo).match(/^SACHEM-GSWP-(\d{5})$/);
     if (!m) continue;
     const n = Number(m[1]);
     if (Number.isInteger(n) && n > maxNum) maxNum = n;
   }
   const next = maxNum + 1;
   return `SACHEM-GSWP-${String(next).padStart(5, '0')}`;
+}
+
+function normalizeDuplicateGswpNumbers() {
+  const rows = db
+    .prepare(`SELECT id, permit_fields_json FROM permits WHERE permit_type = ? ORDER BY id ASC`)
+    .all(PERMIT_TYPES.GENERAL_WORK_SAFE);
+
+  const seen = new Set();
+  let counter = 0;
+  const tx = db.transaction(() => {
+    for (const row of rows) {
+      const fields = parsePermitFieldsJson(row.permit_fields_json);
+      const existing = String(fields.general_permit_no || '');
+      const isValid = /^SACHEM-GSWP-(\d{5})$/.test(existing) && !seen.has(existing);
+      if (isValid) {
+        seen.add(existing);
+        const n = Number(existing.slice(-5));
+        if (n >= counter) counter = n + 1;
+        continue;
+      }
+
+      let next;
+      do {
+        next = `SACHEM-GSWP-${String(counter).padStart(5, '0')}`;
+        counter += 1;
+      } while (seen.has(next));
+
+      fields.general_permit_no = next;
+      db.prepare(`UPDATE permits SET permit_fields_json = ? WHERE id = ?`).run(JSON.stringify(fields), row.id);
+      seen.add(next);
+    }
+  });
+
+  tx();
 }
 
 function fieldSchemaForType(type) {
@@ -349,6 +384,8 @@ function validatePermitFields(permitType, permitFields) {
 function isGeneralPermit(permit) {
   return (permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE) === PERMIT_TYPES.GENERAL_WORK_SAFE;
 }
+
+normalizeDuplicateGswpNumbers();
 
 function canEditFields(user, permit) {
   if (!user || permit.is_locked) return false;
