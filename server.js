@@ -574,7 +574,7 @@ const BRAND = {
   bgSoft: '#f0fdfa',
 };
 
-const LOGO_CANDIDATES = [path.join(__dirname, 'public', 'img', 'sachem.gif'), path.join(__dirname, 'public', 'img', 'sachem.png')];
+const LOGO_CANDIDATES = [path.join(__dirname, 'public', 'img', 'sachem.png'), path.join(__dirname, 'public', 'img', 'sachem.gif')];
 
 function resolveLogoPath() {
   for (const logoPath of LOGO_CANDIDATES) if (fs.existsSync(logoPath)) return logoPath;
@@ -610,6 +610,38 @@ function drawHeader(doc, subtitle) {
   doc.y = 145;
 }
 
+function renderPermitFieldsPdf(doc, permit) {
+  const schema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
+  const values = parsePermitFieldsJson(permit.permit_fields_json);
+  if (!schema.length) return;
+
+  const grouped = schema.reduce((acc, f) => {
+    const section = f.section || 'Form';
+    if (!acc[section]) acc[section] = [];
+    acc[section].push(f);
+    return acc;
+  }, {});
+
+  Object.entries(grouped).forEach(([section, fields]) => {
+    doc.moveDown(0.7);
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(BRAND.primaryDark).text(section);
+    doc.moveDown(0.3);
+
+    fields.forEach((f) => {
+      if (section === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials' && !Number(values.haz_mobile_equipment)) return;
+      let value = values[f.key];
+      if (f.type === 'checkbox') value = Number(value) ? 'Yes' : 'No';
+      if (value === undefined || value === null || String(value).trim() === '') value = '—';
+      doc.font('Helvetica').fontSize(9).fillColor('#0f172a').text(`${f.label}: ${value}`);
+    });
+
+    if (section === 'Section 1 – Additional Work Permits') {
+      const req = parseRequiredPermitsJson(permit.required_permits_json).map((t) => permitTypeLabel(t));
+      doc.font('Helvetica').fontSize(9).fillColor('#0f172a').text(`Selected additional permits: ${req.length ? req.join(', ') : 'None'}`);
+    }
+  });
+}
+
 function generatePermitPdf(res, permit) {
   const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
   const generatedAt = new Date().toLocaleString();
@@ -619,20 +651,23 @@ function generatePermitPdf(res, permit) {
 
   drawHeader(doc, `Permit #${permit.id}`);
   doc.roundedRect(50, doc.y, 495, 64, 8).fillAndStroke('#ffffff', BRAND.border);
-  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, doc.y + 14, { width: 465 });
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, doc.y + 40);
-  doc.y += 82;
+  const permitFields = parsePermitFieldsJson(permit.permit_fields_json);
+  const permitNo = permitFields.general_permit_no || `Permit-${permit.id}`;
+
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, doc.y + 10, { width: 465 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Permit No: ${permitNo} • Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, doc.y + 36);
+  doc.y += 80;
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
   doc.text(`Site: ${permit.site || '-'}`);
-  doc.text(`Permit Date: ${permit.permit_date || '-'}`);
+  doc.text(`Permit End Date: ${permit.permit_date || '-'}`);
   doc.text(`Created By: ${permit.created_by_name}`);
   doc.text(`Updated By: ${permit.updated_by_name}`);
   doc.text(`Locked: ${permit.is_locked ? 'Yes' : 'No'}`);
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
   if (permit.signature_text) doc.text(`Signature: ${permit.signature_text}`);
-  doc.moveDown();
-  doc.font('Helvetica-Bold').text('Description');
-  doc.font('Helvetica').text(permit.description || 'No description provided.');
+
+  renderPermitFieldsPdf(doc, permit);
+
   drawFooter(doc, generatedAt);
   doc.end();
 }
