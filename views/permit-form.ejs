@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= permit ? 'Edit' : 'New' %> Permit</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container narrow">
+    <h1><%= permit ? 'Edit' : 'New' %> Permit</h1>
+    <% if (error) { %><p class="error"><%= error %></p><% } %>
+    <form method="post" action="<%= action %>" class="card">
+      <label>Title
+        <input name="title" required value="<%= permit?.title || '' %>" />
+      </label>
+      <label>Description
+        <textarea name="description" rows="4"><%= permit?.description || '' %></textarea>
+      </label>
+      <label>Site
+        <input name="site" required value="<%= permit?.site || '' %>" />
+      </label>
+      <label>Status
+        <select name="status" required>
+          <% statusOptions.forEach(s => { %>
+            <option value="<%= s %>" <%= (permit?.status || 'draft') === s ? 'selected' : '' %>><%= s %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Permit Date
+        <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
+      </label>
+      <div class="row gap">
+        <button type="submit">Save</button>
+        <a class="button" href="/permits">Cancel</a>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

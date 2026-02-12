@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Permits - Work Permits</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="row space-between">
+      <h1>Work Permits</h1>
+      <div class="row gap">
+        <span>Signed in as <strong><%= user.username %></strong></span>
+        <form method="post" action="/logout"><button type="submit">Logout</button></form>
+      </div>
+    </header>
+
+    <section class="card">
+      <form method="get" action="/permits" class="row wrap gap">
+        <label>Status
+          <select name="status">
+            <option value="">All</option>
+            <% statusOptions.forEach(s => { %>
+              <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Site
+          <input name="site" value="<%= filters.site %>" placeholder="e.g. Plant A" />
+        </label>
+        <label>From
+          <input type="date" name="startDate" value="<%= filters.startDate %>" />
+        </label>
+        <label>To
+          <input type="date" name="endDate" value="<%= filters.endDate %>" />
+        </label>
+        <button type="submit">Apply</button>
+        <a class="button" href="/permits">Clear</a>
+      </form>
+      <div class="row gap">
+        <a class="button" href="/permits/new">New Permit</a>
+        <a class="button" href="/permits/export.csv?status=<%= encodeURIComponent(filters.status) %>&site=<%= encodeURIComponent(filters.site) %>&startDate=<%= encodeURIComponent(filters.startDate) %>&endDate=<%= encodeURIComponent(filters.endDate) %>">Export CSV</a>
+      </div>
+    </section>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Title</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% permits.forEach(p => { %>
+          <tr>
+            <td><%= p.id %></td>
+            <td><%= p.title %></td>
+            <td><%= p.site %></td>
+            <td><%= p.status %></td>
+            <td><%= p.permit_date %></td>
+            <td><%= p.updated_at %></td>
+            <td><%= p.updated_by_name %></td>
+            <td class="row gap">
+              <a href="/permits/<%= p.id %>/edit">Edit</a>
+              <a href="/permits/<%= p.id %>/audit">Audit</a>
+              <form method="post" action="/permits/<%= p.id %>/delete" onsubmit="return confirm('Delete permit #<%= p.id %>?');">
+                <button type="submit" class="danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+        <% if (!permits.length) { %>
+          <tr><td colspan="8">No permits found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Audit Trail - Permit <%= permitId %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Audit Trail: Permit #<%= permitId %></h1>
+    <p><a href="/permits">← Back to permits</a></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>When</th><th>User</th><th>Action</th><th>Old Values</th><th>New Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% auditRows.forEach(r => { %>
+          <tr>
+            <td><%= r.changed_at %></td>
+            <td><%= r.username %></td>
+            <td><%= r.action %></td>
+            <td><pre><%= r.old_values || '' %></pre></td>
+            <td><pre><%= r.new_values || '' %></pre></td>
+          </tr>
+        <% }) %>
+        <% if (!auditRows.length) { %>
+          <tr><td colspan="5">No audit records found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
