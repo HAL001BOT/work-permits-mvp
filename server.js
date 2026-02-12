@@ -771,18 +771,20 @@ app.post('/login', (req, res) => {
 app.post('/logout', requireAuth, (req, res) => req.session.destroy(() => res.redirect('/login')));
 
 app.get('/admin/users', requireAuth, requireAdmin, (req, res) => {
-  const users = db.prepare(`SELECT id, username, role, created_at FROM users ORDER BY created_at DESC`).all();
-  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : null);
-  const error = req.query.pwerror ? 'Could not change password.' : null;
+  const users = db.prepare(`SELECT id, username, role, full_name, position, created_at FROM users ORDER BY created_at DESC`).all();
+  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : (req.query.profileUpdated ? 'User profile updated.' : null));
+  const error = req.query.pwerror ? 'Could not change password.' : (req.query.profileError ? 'Could not update user profile.' : null);
   res.render('admin-users', { users, error, success, roles: Object.values(ROLES) });
 });
 
 app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
-  const { username = '', password = '', role = '' } = req.body;
+  const { username = '', password = '', role = '', full_name = '', position = '' } = req.body;
   const cleanUsername = String(username).trim();
   const cleanRole = String(role).trim();
+  const cleanFullName = String(full_name).trim();
+  const cleanPosition = String(position).trim();
 
-  const users = db.prepare(`SELECT id, username, role, created_at FROM users ORDER BY created_at DESC`).all();
+  const users = db.prepare(`SELECT id, username, role, full_name, position, created_at FROM users ORDER BY created_at DESC`).all();
 
   if (!cleanUsername || !password || !Object.values(ROLES).includes(cleanRole)) {
     return res.status(400).render('admin-users', { users, error: 'Username, password, and valid role are required.', success: null, roles: Object.values(ROLES) });
@@ -794,7 +796,7 @@ app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
   }
 
   const hash = bcrypt.hashSync(password, 12);
-  db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run(cleanUsername, hash, cleanRole);
+  db.prepare('INSERT INTO users (username, password_hash, role, full_name, position) VALUES (?, ?, ?, ?, ?)').run(cleanUsername, hash, cleanRole, cleanFullName, cleanPosition);
   return res.redirect('/admin/users?created=1');
 });
 
@@ -809,6 +811,15 @@ app.post('/admin/users/:id(\\d+)/password', requireAuth, requireAdmin, (req, res
   const hash = bcrypt.hashSync(newPass, 12);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.params.id);
   return res.redirect('/admin/users?pwchanged=1');
+});
+
+app.post('/admin/users/:id(\\d+)/profile', requireAuth, requireAdmin, (req, res) => {
+  const { full_name = '', position = '' } = req.body;
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).redirect('/admin/users?profileError=1');
+
+  db.prepare('UPDATE users SET full_name = ?, position = ? WHERE id = ?').run(String(full_name).trim(), String(position).trim(), req.params.id);
+  return res.redirect('/admin/users?profileUpdated=1');
 });
 
 app.get('/permits', requireAuth, (req, res) => {

@@ -34,6 +34,12 @@
             <% roles.forEach(r => { %><option value="<%= r %>"><%= r %></option><% }) %>
           </select>
         </label>
+        <label>Full Name
+          <input name="full_name" />
+        </label>
+        <label>Position
+          <input name="position" />
+        </label>
         <div class="row gap wrap"><button type="submit" class="button primary">Create User</button></div>
       </form>
     </section>
@@ -41,14 +47,23 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th>Change Password</th></tr></thead>
+          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Full Name</th><th>Position</th><th>Created</th><th>Update Profile</th><th>Change Password</th></tr></thead>
           <tbody>
             <% users.forEach(u => { %>
               <tr>
                 <td><%= u.id %></td>
                 <td><%= u.username %></td>
                 <td><%= u.role %></td>
+                <td><%= u.full_name || '—' %></td>
+                <td><%= u.position || '—' %></td>
                 <td><%= u.created_at %></td>
+                <td>
+                  <form method="post" action="/admin/users/<%= u.id %>/profile" class="row gap wrap" onsubmit="return confirm('Update profile for <%= u.username %>?');">
+                    <input name="full_name" placeholder="Full name" value="<%= u.full_name || '' %>" />
+                    <input name="position" placeholder="Position" value="<%= u.position || '' %>" />
+                    <button type="submit" class="button">Save</button>
+                  </form>
+                </td>
                 <td>
                   <form method="post" action="/admin/users/<%= u.id %>/password" class="row gap wrap" onsubmit="return confirm('Change password for <%= u.username %>?');">
                     <input type="password" name="password" placeholder="New password" required minlength="6" />

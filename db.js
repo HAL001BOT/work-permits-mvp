@@ -130,6 +130,13 @@ function migrate() {
       ALTER TABLE permits ADD COLUMN permit_fields_json TEXT NOT NULL DEFAULT '{}';
     `);
   });
+
+  applyMigration('007_users_profile_fields', () => {
+    db.exec(`
+      ALTER TABLE users ADD COLUMN full_name TEXT NOT NULL DEFAULT '';
+      ALTER TABLE users ADD COLUMN position TEXT NOT NULL DEFAULT '';
+    `);
+  });
 }
 
 module.exports = {
