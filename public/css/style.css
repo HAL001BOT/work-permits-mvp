@@ -172,6 +172,19 @@ pre {
 }
 .audit-change-table th { background: #f0fdf4; }
 
+fieldset {
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
+  padding: 14px;
+  background: #fafafa;
+}
+
+legend {
+  color: #14532d;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
 @media (max-width: 700px) {
   .detail-list div { grid-template-columns: 1fr; gap: 4px; }
 }

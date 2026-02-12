@@ -78,7 +78,6 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'work_order_number', label: 'Work Order Number', type: 'text', section: 'General Information' },
     { key: 'project_number', label: 'Project Number (if applicable)', type: 'text', section: 'General Information' },
 
-    { key: 'other_permits_needed', label: 'Other permits needed', type: 'textarea', section: 'Section 1 – Additional Work Permits' },
     { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', section: 'Section 1 – Additional Work Permits' },
 
     { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', section: 'Section 2a – Work Description' },

@@ -57,7 +57,7 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Site</th><th>Status</th><th>Revision</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th></tr></thead>
           <tbody>
             <% permits.forEach(p => { %>
               <tr>
@@ -66,7 +66,6 @@
                 <td><%= (p.permit_type === 'general_work_safe' ? 'GSWP' : (p.permit_type || '')) %><% if (p.parent_permit_id) { %> (Parent <%= p.parent_permit_id %>)<% } %></td>
                 <td><%= p.site %></td>
                 <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
-                <td><%= p.revision %></td>
                 <td><%= p.permit_date %></td>
                 <td><%= p.updated_at %></td>
                 <td><%= p.updated_by_name %></td>
@@ -82,7 +81,7 @@
                 </td>
               </tr>
             <% }) %>
-            <% if (!permits.length) { %><tr><td colspan="10" class="muted">No permits found.</td></tr><% } %>
+            <% if (!permits.length) { %><tr><td colspan="9" class="muted">No permits found.</td></tr><% } %>
           </tbody>
         </table>
       </div>

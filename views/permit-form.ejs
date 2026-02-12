@@ -29,9 +29,7 @@
     %>
 
     <form method="post" action="<%= action %>" class="card form-stack">
-      <label>Title
-        <input name="title" value="<%= currentType === 'general_work_safe' ? 'General safe work permit' : (permit?.title || '') %>" readonly />
-      </label>
+      <input name="title" value="<%= currentType === 'general_work_safe' ? 'General safe work permit' : (permit?.title || '') %>" readonly />
 
       <% if (permitFieldSchema?.length) {
            const grouped = permitFieldSchema.reduce((acc, f) => {
@@ -46,27 +44,29 @@
             <legend><%= sectionName %></legend>
             <div class="form-stack">
               <% fields.forEach(f => { %>
-                <label>
-                  <%= f.label %>
-                  <% if (f.type === 'textarea') { %>
-                    <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
-                  <% } else if (f.type === 'checkbox') { %>
-                    <span class="row gap" style="align-items:center; margin-top:6px;">
-                      <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
-                      <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
-                      <span class="muted"><%= f.forcedTrue ? 'Required' : 'Yes' %></span>
-                    </span>
-                  <% } else if (f.type === 'select') { %>
-                    <select name="pf__<%= f.key %>">
-                      <option value="">Select...</option>
-                      <% (f.options || []).forEach(opt => { %>
-                        <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
-                      <% }) %>
-                    </select>
-                  <% } else { %>
-                    <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> />
-                  <% } %>
-                </label>
+                <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits')) { %>
+                  <label>
+                    <%= f.label %>
+                    <% if (f.type === 'textarea') { %>
+                      <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
+                    <% } else if (f.type === 'checkbox') { %>
+                      <span class="row gap" style="align-items:center; margin-top:6px;">
+                        <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
+                        <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
+                        <span class="muted"><%= f.forcedTrue ? 'Required' : 'Yes' %></span>
+                      </span>
+                    <% } else if (f.type === 'select') { %>
+                      <select name="pf__<%= f.key %>">
+                        <option value="">Select...</option>
+                        <% (f.options || []).forEach(opt => { %>
+                          <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
+                        <% }) %>
+                      </select>
+                    <% } else { %>
+                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> />
+                    <% } %>
+                  </label>
+                <% } %>
 
                 <% if (sectionName === 'General Information' && f.key === 'start_date') { %>
                   <label>Permit End Date
@@ -90,15 +90,15 @@
                     <span><%= permitTypeLabels[type] %></span>
                   </label>
                 <% }) %>
+                <label class="row gap" style="align-items:center;">
+                  <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> />
+                  <span>I confirm no other permits are needed</span>
+                </label>
               <% } %>
             </div>
           </fieldset>
         <% }) %>
       <% } %>
-
-      <label>Permit Type
-        <input value="<%= permitTypeLabels[currentType] || currentType %>" disabled />
-      </label>
 
       <div class="row gap wrap">
         <button type="submit" class="button primary">Save Permit</button>
