@@ -61,27 +61,36 @@
         </fieldset>
       <% } %>
 
-      <% if (permitFieldSchema?.length) { %>
-        <fieldset>
-          <legend><%= permitTypeLabels[currentType] || currentType %> Template Fields</legend>
-          <div class="form-stack">
-            <% permitFieldSchema.forEach(f => { %>
-              <label>
-                <%= f.label %>
-                <% if (f.type === 'textarea') { %>
-                  <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
-                <% } else if (f.type === 'checkbox') { %>
-                  <span class="row gap" style="align-items:center; margin-top:6px;">
-                    <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= Number(fieldValues[f.key]) ? 'checked' : '' %> />
-                    <span class="muted">Yes</span>
-                  </span>
-                <% } else { %>
-                  <input type="<%= f.type === 'date' ? 'date' : 'text' %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" />
-                <% } %>
-              </label>
-            <% }) %>
-          </div>
-        </fieldset>
+      <% if (permitFieldSchema?.length) {
+           const grouped = permitFieldSchema.reduce((acc, f) => {
+             const section = f.section || 'Form';
+             if (!acc[section]) acc[section] = [];
+             acc[section].push(f);
+             return acc;
+           }, {});
+        %>
+        <% Object.entries(grouped).forEach(([sectionName, fields]) => { %>
+          <fieldset>
+            <legend><%= sectionName %></legend>
+            <div class="form-stack">
+              <% fields.forEach(f => { %>
+                <label>
+                  <%= f.label %>
+                  <% if (f.type === 'textarea') { %>
+                    <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
+                  <% } else if (f.type === 'checkbox') { %>
+                    <span class="row gap" style="align-items:center; margin-top:6px;">
+                      <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= Number(fieldValues[f.key]) ? 'checked' : '' %> />
+                      <span class="muted">Yes</span>
+                    </span>
+                  <% } else { %>
+                    <input type="<%= f.type === 'date' ? 'date' : 'text' %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" />
+                  <% } %>
+                </label>
+              <% }) %>
+            </div>
+          </fieldset>
+        <% }) %>
       <% } %>
 
       <div class="row gap wrap">

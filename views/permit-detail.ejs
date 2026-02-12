@@ -19,9 +19,6 @@
         <a class="button" href="/permits/<%= permit.id %>/export.pdf">Export PDF</a>
         <% if (permissions.canEdit) { %>
           <a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a>
-          <form method="post" action="/permits/<%= permit.id %>/populate-template" style="display:inline" onsubmit="return confirm('Replace description with template content for this permit type?');">
-            <button type="submit" class="button">Populate from Template</button>
-          </form>
         <% } %>
       </div>
     </header>
@@ -93,7 +90,7 @@
       </article>
 
       <article class="card">
-        <h2 class="section-title">Template Field Values</h2>
+        <h2 class="section-title">Permit Form Details</h2>
         <% if (!permitFieldSchema?.length) { %>
           <p class="muted">No structured fields for this permit type.</p>
         <% } else { %>
