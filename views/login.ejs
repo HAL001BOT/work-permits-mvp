@@ -7,18 +7,21 @@
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <main class="container narrow">
-    <h1>Work Permits Login</h1>
-    <% if (error) { %><p class="error"><%= error %></p><% } %>
-    <form method="post" action="/login" class="card">
-      <label>Username
-        <input name="username" required />
-      </label>
-      <label>Password
-        <input type="password" name="password" required />
-      </label>
-      <button type="submit">Sign In</button>
-    </form>
+  <main class="container narrow auth-layout">
+    <section class="card">
+      <h1>Work Permits Login</h1>
+      <p class="muted">Sign in to manage permits, exports, and audit history.</p>
+      <% if (error) { %><p class="error"><%= error %></p><% } %>
+      <form method="post" action="/login" class="form-stack">
+        <label>Username
+          <input name="username" required autocomplete="username" />
+        </label>
+        <label>Password
+          <input type="password" name="password" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="button primary">Sign In</button>
+      </form>
+    </section>
   </main>
 </body>
 </html>

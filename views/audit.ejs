@@ -8,30 +8,36 @@
 </head>
 <body>
   <main class="container">
-    <h1>Audit Trail: Permit #<%= permitId %></h1>
-    <p><a href="/permits">← Back to permits</a></p>
+    <header class="page-header">
+      <h1>Audit Trail: Permit #<%= permitId %></h1>
+      <p><a href="/permits">← Back to permits</a></p>
+    </header>
 
-    <table>
-      <thead>
-        <tr>
-          <th>When</th><th>User</th><th>Action</th><th>Old Values</th><th>New Values</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% auditRows.forEach(r => { %>
-          <tr>
-            <td><%= r.changed_at %></td>
-            <td><%= r.username %></td>
-            <td><%= r.action %></td>
-            <td><pre><%= r.old_values || '' %></pre></td>
-            <td><pre><%= r.new_values || '' %></pre></td>
-          </tr>
-        <% }) %>
-        <% if (!auditRows.length) { %>
-          <tr><td colspan="5">No audit records found.</td></tr>
-        <% } %>
-      </tbody>
-    </table>
+    <section class="card table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>When</th><th>User</th><th>Action</th><th>Old Values</th><th>New Values</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% auditRows.forEach(r => { %>
+              <tr>
+                <td><%= r.changed_at %></td>
+                <td><%= r.username %></td>
+                <td><span class="status-pill"><%= r.action %></span></td>
+                <td><pre><%= r.old_values || '' %></pre></td>
+                <td><pre><%= r.new_values || '' %></pre></td>
+              </tr>
+            <% }) %>
+            <% if (!auditRows.length) { %>
+              <tr><td colspan="5" class="muted">No audit records found.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 </body>
 </html>

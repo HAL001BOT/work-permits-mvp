@@ -8,16 +8,33 @@
 </head>
 <body>
   <main class="container">
-    <header class="row space-between">
-      <h1>Work Permits</h1>
-      <div class="row gap">
-        <span>Signed in as <strong><%= user.username %></strong></span>
-        <form method="post" action="/logout"><button type="submit">Logout</button></form>
+    <header class="page-header row space-between wrap gap-md">
+      <div>
+        <h1>Work Permits Dashboard</h1>
+        <p class="muted">Track permit status, ownership, and updates in one place.</p>
+      </div>
+      <div class="row gap wrap">
+        <span class="badge">Signed in as <strong><%= user.username %></strong></span>
+        <form method="post" action="/logout"><button type="submit" class="button ghost">Logout</button></form>
       </div>
     </header>
 
+    <section class="stats-grid">
+      <article class="stat-card">
+        <h3>Total permits</h3>
+        <p class="stat-value"><%= stats.total %></p>
+      </article>
+      <% Object.entries(stats.statusCounts).forEach(([status, count]) => { %>
+        <article class="stat-card">
+          <h3><%= status.charAt(0).toUpperCase() + status.slice(1) %></h3>
+          <p class="stat-value"><%= count %></p>
+        </article>
+      <% }) %>
+    </section>
+
     <section class="card">
-      <form method="get" action="/permits" class="row wrap gap">
+      <h2 class="section-title">Filters</h2>
+      <form method="get" action="/permits" class="grid-form">
         <label>Status
           <select name="status">
             <option value="">All</option>
@@ -35,45 +52,59 @@
         <label>To
           <input type="date" name="endDate" value="<%= filters.endDate %>" />
         </label>
-        <button type="submit">Apply</button>
-        <a class="button" href="/permits">Clear</a>
+        <div class="row gap wrap">
+          <button type="submit" class="button primary">Apply</button>
+          <a class="button ghost" href="/permits">Clear</a>
+        </div>
       </form>
-      <div class="row gap">
-        <a class="button" href="/permits/new">New Permit</a>
+    </section>
+
+    <section class="card">
+      <div class="row gap wrap">
+        <a class="button primary" href="/permits/new">New Permit</a>
         <a class="button" href="/permits/export.csv?status=<%= encodeURIComponent(filters.status) %>&site=<%= encodeURIComponent(filters.site) %>&startDate=<%= encodeURIComponent(filters.startDate) %>&endDate=<%= encodeURIComponent(filters.endDate) %>">Export CSV</a>
+        <a class="button" href="/permits/export.pdf?status=<%= encodeURIComponent(filters.status) %>&site=<%= encodeURIComponent(filters.site) %>&startDate=<%= encodeURIComponent(filters.startDate) %>&endDate=<%= encodeURIComponent(filters.endDate) %>">Export PDF Summary</a>
       </div>
     </section>
 
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th><th>Title</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% permits.forEach(p => { %>
-          <tr>
-            <td><%= p.id %></td>
-            <td><%= p.title %></td>
-            <td><%= p.site %></td>
-            <td><%= p.status %></td>
-            <td><%= p.permit_date %></td>
-            <td><%= p.updated_at %></td>
-            <td><%= p.updated_by_name %></td>
-            <td class="row gap">
-              <a href="/permits/<%= p.id %>/edit">Edit</a>
-              <a href="/permits/<%= p.id %>/audit">Audit</a>
-              <form method="post" action="/permits/<%= p.id %>/delete" onsubmit="return confirm('Delete permit #<%= p.id %>?');">
-                <button type="submit" class="danger">Delete</button>
-              </form>
-            </td>
-          </tr>
-        <% }) %>
-        <% if (!permits.length) { %>
-          <tr><td colspan="8">No permits found.</td></tr>
-        <% } %>
-      </tbody>
-    </table>
+    <section class="table-card card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th><th>Title</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% permits.forEach(p => { %>
+              <tr>
+                <td>#<%= p.id %></td>
+                <td><strong><%= p.title %></strong></td>
+                <td><%= p.site %></td>
+                <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
+                <td><%= p.permit_date %></td>
+                <td><%= p.updated_at %></td>
+                <td><%= p.updated_by_name %></td>
+                <td>
+                  <div class="row gap wrap">
+                    <a href="/permits/<%= p.id %>">View</a>
+                    <a href="/permits/<%= p.id %>/edit">Edit</a>
+                    <a href="/permits/<%= p.id %>/audit">Audit</a>
+                    <a href="/permits/<%= p.id %>/export.pdf">PDF</a>
+                    <form method="post" action="/permits/<%= p.id %>/delete" onsubmit="return confirm('Delete permit #<%= p.id %>?');">
+                      <button type="submit" class="danger-link">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+            <% if (!permits.length) { %>
+              <tr><td colspan="8" class="muted">No permits found.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
 </body>
 </html>

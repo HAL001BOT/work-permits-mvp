@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Permit #<%= permit.id %> - <%= permit.title %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header row wrap space-between gap">
+      <div>
+        <h1>Permit #<%= permit.id %></h1>
+        <p class="muted"><%= permit.title %></p>
+      </div>
+      <div class="row gap wrap">
+        <a class="button ghost" href="/permits">Back</a>
+        <a class="button" href="/permits/<%= permit.id %>/audit">Audit Trail</a>
+        <a class="button" href="/permits/<%= permit.id %>/export.pdf">Export PDF</a>
+        <a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a>
+      </div>
+    </header>
+
+    <section class="detail-grid">
+      <article class="card">
+        <h2 class="section-title">Permit Details</h2>
+        <dl class="detail-list">
+          <div><dt>Site</dt><dd><%= permit.site %></dd></div>
+          <div><dt>Status</dt><dd><span class="status-pill status-<%= permit.status %>"><%= permit.status %></span></dd></div>
+          <div><dt>Permit Date</dt><dd><%= permit.permit_date %></dd></div>
+          <div><dt>Created At</dt><dd><%= permit.created_at %></dd></div>
+          <div><dt>Updated At</dt><dd><%= permit.updated_at %></dd></div>
+          <div><dt>Created By</dt><dd><%= permit.created_by_name %></dd></div>
+          <div><dt>Updated By</dt><dd><%= permit.updated_by_name %></dd></div>
+        </dl>
+      </article>
+
+      <article class="card">
+        <h2 class="section-title">Description</h2>
+        <p class="description"><%= permit.description || 'No description provided.' %></p>
+      </article>
+
+      <article class="card">
+        <h2 class="section-title">Recent Activity</h2>
+        <% if (!recentAudit.length) { %>
+          <p class="muted">No audit events yet.</p>
+        <% } else { %>
+          <ul class="activity-list">
+            <% recentAudit.forEach(row => { %>
+              <li><strong><%= row.action %></strong> by <%= row.username %> <span class="muted">on <%= row.changed_at %></span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

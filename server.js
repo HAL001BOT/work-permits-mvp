@@ -4,6 +4,7 @@ const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
+const PDFDocument = require('pdfkit');
 const { db, migrate } = require('./db');
 
 migrate();
@@ -48,6 +49,135 @@ function statusOptions() {
   return ['draft', 'submitted', 'approved', 'closed'];
 }
 
+function getFilterContext(query) {
+  const { status = '', site = '', startDate = '', endDate = '' } = query;
+  const clauses = [];
+  const params = [];
+
+  if (status) {
+    clauses.push('p.status = ?');
+    params.push(status);
+  }
+  if (site) {
+    clauses.push('p.site LIKE ?');
+    params.push(`%${site}%`);
+  }
+  if (startDate) {
+    clauses.push('p.permit_date >= ?');
+    params.push(startDate);
+  }
+  if (endDate) {
+    clauses.push('p.permit_date <= ?');
+    params.push(endDate);
+  }
+
+  return {
+    filters: { status, site, startDate, endDate },
+    where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
+    params,
+  };
+}
+
+function formatStatusLabel(status) {
+  if (!status) return '';
+  return status[0].toUpperCase() + status.slice(1);
+}
+
+function generatePermitPdf(res, permit) {
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  const safeTitle = `permit-${permit.id}.pdf`;
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}"`);
+  doc.pipe(res);
+
+  doc.fontSize(20).text('Work Permit', { align: 'left' });
+  doc.moveDown(0.5);
+  doc.fontSize(12).fillColor('#4b5563').text(`Generated: ${new Date().toLocaleString()}`);
+
+  doc.moveDown();
+  doc.fillColor('black').fontSize(14).text(`Permit #${permit.id}: ${permit.title}`);
+  doc.moveDown(0.7);
+
+  const fields = [
+    ['Site', permit.site],
+    ['Status', formatStatusLabel(permit.status)],
+    ['Permit Date', permit.permit_date],
+    ['Created At', permit.created_at],
+    ['Updated At', permit.updated_at],
+    ['Created By', permit.created_by_name],
+    ['Updated By', permit.updated_by_name],
+  ];
+
+  fields.forEach(([label, value]) => {
+    doc.font('Helvetica-Bold').text(`${label}: `, { continued: true });
+    doc.font('Helvetica').text(value || '-');
+  });
+
+  doc.moveDown();
+  doc.font('Helvetica-Bold').text('Description');
+  doc.font('Helvetica').text(permit.description || 'No description provided.', {
+    lineGap: 3,
+  });
+
+  doc.end();
+}
+
+function generatePermitListPdf(res, permits, filters) {
+  const doc = new PDFDocument({ margin: 45, size: 'A4' });
+  const filename = 'permits-summary.pdf';
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  doc.pipe(res);
+
+  doc.fontSize(20).text('Work Permits Summary');
+  doc.moveDown(0.5);
+  doc.fontSize(11).fillColor('#4b5563').text(`Generated: ${new Date().toLocaleString()}`);
+  doc.fillColor('black');
+
+  const activeFilterLines = [
+    filters.status ? `Status: ${filters.status}` : null,
+    filters.site ? `Site contains: ${filters.site}` : null,
+    filters.startDate ? `From: ${filters.startDate}` : null,
+    filters.endDate ? `To: ${filters.endDate}` : null,
+  ].filter(Boolean);
+
+  doc.moveDown(0.7);
+  doc.font('Helvetica-Bold').text('Filters');
+  doc.font('Helvetica').text(activeFilterLines.length ? activeFilterLines.join(' | ') : 'None');
+
+  doc.moveDown(0.5);
+  doc.font('Helvetica-Bold').text(`Total permits: ${permits.length}`);
+  doc.moveDown();
+
+  if (!permits.length) {
+    doc.font('Helvetica').text('No permits matched the selected filters.');
+    doc.end();
+    return;
+  }
+
+  permits.forEach((permit, idx) => {
+    if (idx > 0) doc.moveDown(0.5);
+
+    const blockTop = doc.y;
+    doc.rect(45, blockTop - 3, 505, 70).stroke('#e5e7eb');
+
+    doc.font('Helvetica-Bold').fontSize(12).text(`#${permit.id} - ${permit.title}`, 52, blockTop + 6);
+    doc.font('Helvetica').fontSize(10).text(
+      `Site: ${permit.site}    Status: ${formatStatusLabel(permit.status)}    Permit Date: ${permit.permit_date}`,
+      52,
+      blockTop + 25
+    );
+    doc.text(`Updated: ${permit.updated_at} by ${permit.updated_by_name}`, 52, blockTop + 40);
+
+    doc.y = blockTop + 76;
+    if (doc.y > 740) doc.addPage();
+  });
+
+  doc.end();
+}
+
 app.get('/', requireAuth, (req, res) => {
   res.redirect('/permits');
 });
@@ -76,28 +206,7 @@ app.post('/logout', requireAuth, (req, res) => {
 });
 
 app.get('/permits', requireAuth, (req, res) => {
-  const { status = '', site = '', startDate = '', endDate = '' } = req.query;
-  const clauses = [];
-  const params = [];
-
-  if (status) {
-    clauses.push('p.status = ?');
-    params.push(status);
-  }
-  if (site) {
-    clauses.push('p.site LIKE ?');
-    params.push(`%${site}%`);
-  }
-  if (startDate) {
-    clauses.push('p.permit_date >= ?');
-    params.push(startDate);
-  }
-  if (endDate) {
-    clauses.push('p.permit_date <= ?');
-    params.push(endDate);
-  }
-
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const { filters, where, params } = getFilterContext(req.query);
 
   const permits = db
     .prepare(
@@ -110,10 +219,19 @@ app.get('/permits', requireAuth, (req, res) => {
     )
     .all(...params);
 
+  const statusCounts = statusOptions().reduce((acc, status) => {
+    acc[status] = permits.filter((p) => p.status === status).length;
+    return acc;
+  }, {});
+
   res.render('permits', {
     permits,
-    filters: { status, site, startDate, endDate },
+    filters,
     statusOptions: statusOptions(),
+    stats: {
+      total: permits.length,
+      statusCounts,
+    },
   });
 });
 
@@ -227,6 +345,36 @@ app.post('/permits/:id/delete', requireAuth, (req, res) => {
   res.redirect('/permits');
 });
 
+app.get('/permits/:id', requireAuth, (req, res) => {
+  const permit = db
+    .prepare(
+      `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
+       FROM permits p
+       JOIN users c ON c.id = p.created_by
+       JOIN users u ON u.id = p.updated_by
+       WHERE p.id = ?`
+    )
+    .get(req.params.id);
+
+  if (!permit) return res.status(404).send('Permit not found');
+
+  const recentAudit = db
+    .prepare(
+      `SELECT a.changed_at, a.action, u.username
+       FROM permit_audit a
+       JOIN users u ON u.id = a.changed_by
+       WHERE a.permit_id = ?
+       ORDER BY a.changed_at DESC
+       LIMIT 5`
+    )
+    .all(req.params.id);
+
+  res.render('permit-detail', {
+    permit,
+    recentAudit,
+  });
+});
+
 app.get('/permits/:id/audit', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
   const auditRows = db
@@ -244,31 +392,44 @@ app.get('/permits/:id/audit', requireAuth, (req, res) => {
   res.render('audit', { permitId: req.params.id, auditRows });
 });
 
+app.get('/permits/:id/export.pdf', requireAuth, (req, res) => {
+  const permit = db
+    .prepare(
+      `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
+       FROM permits p
+       JOIN users c ON c.id = p.created_by
+       JOIN users u ON u.id = p.updated_by
+       WHERE p.id = ?`
+    )
+    .get(req.params.id);
+
+  if (!permit) return res.status(404).send('Permit not found');
+  generatePermitPdf(res, permit);
+});
+
+app.get('/permits/export.pdf', requireAuth, (req, res) => {
+  const { filters, where, params } = getFilterContext(req.query);
+  const whereNoAlias = where.replace(/p\./g, '');
+
+  const permits = db
+    .prepare(
+      `SELECT p.id, p.title, p.site, p.status, p.permit_date, p.updated_at, u.username AS updated_by_name
+       FROM permits p
+       JOIN users u ON u.id = p.updated_by
+       ${whereNoAlias}
+       ORDER BY p.updated_at DESC`
+    )
+    .all(...params);
+
+  generatePermitListPdf(res, permits, filters);
+});
+
 app.get('/permits/export.csv', requireAuth, (req, res) => {
-  const { status = '', site = '', startDate = '', endDate = '' } = req.query;
-  const clauses = [];
-  const params = [];
+  const { where, params } = getFilterContext(req.query);
+  const whereNoAlias = where.replace(/p\./g, '');
 
-  if (status) {
-    clauses.push('status = ?');
-    params.push(status);
-  }
-  if (site) {
-    clauses.push('site LIKE ?');
-    params.push(`%${site}%`);
-  }
-  if (startDate) {
-    clauses.push('permit_date >= ?');
-    params.push(startDate);
-  }
-  if (endDate) {
-    clauses.push('permit_date <= ?');
-    params.push(endDate);
-  }
-
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const rows = db
-    .prepare(`SELECT id,title,description,site,status,permit_date,created_at,updated_at FROM permits ${where} ORDER BY updated_at DESC`)
+    .prepare(`SELECT id,title,description,site,status,permit_date,created_at,updated_at FROM permits ${whereNoAlias} ORDER BY updated_at DESC`)
     .all(...params);
 
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;

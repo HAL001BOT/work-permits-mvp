@@ -8,31 +8,38 @@
 </head>
 <body>
   <main class="container narrow">
-    <h1><%= permit ? 'Edit' : 'New' %> Permit</h1>
+    <header class="page-header">
+      <h1><%= permit ? 'Edit' : 'Create New' %> Permit</h1>
+      <p class="muted">Capture work details clearly for review and approval.</p>
+    </header>
+
     <% if (error) { %><p class="error"><%= error %></p><% } %>
-    <form method="post" action="<%= action %>" class="card">
+
+    <form method="post" action="<%= action %>" class="card form-stack">
       <label>Title
-        <input name="title" required value="<%= permit?.title || '' %>" />
+        <input name="title" required value="<%= permit?.title || '' %>" placeholder="e.g. Hot work maintenance" />
       </label>
       <label>Description
-        <textarea name="description" rows="4"><%= permit?.description || '' %></textarea>
+        <textarea name="description" rows="6" placeholder="Scope, controls, and notes"><%= permit?.description || '' %></textarea>
       </label>
       <label>Site
-        <input name="site" required value="<%= permit?.site || '' %>" />
+        <input name="site" required value="<%= permit?.site || '' %>" placeholder="e.g. Plant A / Boiler room" />
       </label>
-      <label>Status
-        <select name="status" required>
-          <% statusOptions.forEach(s => { %>
-            <option value="<%= s %>" <%= (permit?.status || 'draft') === s ? 'selected' : '' %>><%= s %></option>
-          <% }) %>
-        </select>
-      </label>
-      <label>Permit Date
-        <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
-      </label>
-      <div class="row gap">
-        <button type="submit">Save</button>
-        <a class="button" href="/permits">Cancel</a>
+      <div class="row gap wrap">
+        <label class="field-half">Status
+          <select name="status" required>
+            <% statusOptions.forEach(s => { %>
+              <option value="<%= s %>" <%= (permit?.status || 'draft') === s ? 'selected' : '' %>><%= s %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="field-half">Permit Date
+          <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
+        </label>
+      </div>
+      <div class="row gap wrap">
+        <button type="submit" class="button primary">Save Permit</button>
+        <a class="button ghost" href="/permits">Cancel</a>
       </div>
     </form>
   </main>

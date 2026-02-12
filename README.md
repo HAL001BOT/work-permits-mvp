@@ -11,12 +11,15 @@ A lightweight multi-user work permits app for local LAN demos.
 - Filtering by status, site, and date range
 - Audit trail for create/update/delete (who + when + old/new values)
 - CSV export for permit records
+- PDF export for a single permit and filtered permit summary (`pdfkit`)
+- Improved dashboard, forms, table view, and permit detail page for easier visualization
 
 ## Tech Stack
 
 - Node.js + Express
 - EJS server-rendered views
 - SQLite database
+- PDF generation with `pdfkit`
 
 ## Quick Start
 
@@ -30,6 +33,14 @@ Then open:
 
 - `http://<your-lan-ip>:3000` (LAN)
 - `http://localhost:3000` (local)
+
+## Using Exports and Views
+
+- **Dashboard:** `/permits` includes filter controls, status summary cards, and action links.
+- **Permit detail:** click **View** on any permit row to open a readable detail page.
+- **Single permit PDF:** click **PDF** in a permit row (or open `/permits/:id/export.pdf`).
+- **Filtered summary PDF:** use dashboard filters then click **Export PDF Summary** (or open `/permits/export.pdf` with the same query string).
+- **CSV export:** still available via **Export CSV** with the active filters.
 
 ## Seed Admin User
 
