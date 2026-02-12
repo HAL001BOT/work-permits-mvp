@@ -85,12 +85,12 @@
               <% if (sectionName === 'Section 1 – Additional Work Permits' && currentType === 'general_work_safe') { %>
                 <label class="muted">Check all additional permits required for this job.</label>
                 <% supplementalPermitTypes.forEach(type => { %>
-                  <label class="row gap" style="align-items:center;">
+                  <label class="check-option">
                     <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
                     <span><%= permitTypeLabels[type] %></span>
                   </label>
                 <% }) %>
-                <label class="row gap" style="align-items:center;">
+                <label class="check-option">
                   <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> />
                   <span>I confirm no other permits are needed</span>
                 </label>
