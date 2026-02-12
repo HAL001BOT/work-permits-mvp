@@ -7,8 +7,13 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'app.db');
-const db = new Database(dbPath);
+const configuredDbPath = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(dataDir, 'app.db');
+const configuredDbDir = path.dirname(configuredDbPath);
+if (!fs.existsSync(configuredDbDir)) {
+  fs.mkdirSync(configuredDbDir, { recursive: true });
+}
+
+const db = new Database(configuredDbPath);
 db.pragma('journal_mode = WAL');
 
 db.exec(`
@@ -142,6 +147,57 @@ function migrate() {
     db.exec(`
       ALTER TABLE permits ADD COLUMN deleted_at TEXT;
       CREATE INDEX IF NOT EXISTS idx_permits_deleted_at ON permits(deleted_at);
+    `);
+  });
+
+  applyMigration('009_permit_number_uniqueness', () => {
+    db.exec(`
+      ALTER TABLE permits ADD COLUMN permit_number TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_permits_permit_number_active
+      ON permits(permit_number)
+      WHERE permit_number IS NOT NULL AND deleted_at IS NULL;
+    `);
+
+    const rows = db.prepare(`SELECT id, permit_type, permit_fields_json FROM permits`).all();
+    const seen = new Set();
+    let counter = 0;
+    const update = db.prepare(`UPDATE permits SET permit_number = ?, permit_fields_json = ? WHERE id = ?`);
+
+    for (const row of rows) {
+      if (row.permit_type !== 'general_work_safe') continue;
+      let fields = {};
+      try { fields = JSON.parse(row.permit_fields_json || '{}') || {}; } catch { fields = {}; }
+      const existing = String(fields.general_permit_no || '');
+      const match = existing.match(/^(?:SACHEM-)?GSWP-(\d{5})$/);
+      let permitNumber = match ? `GSWP-${match[1]}` : '';
+
+      if (!permitNumber || seen.has(permitNumber)) {
+        do {
+          permitNumber = `GSWP-${String(counter).padStart(5, '0')}`;
+          counter += 1;
+        } while (seen.has(permitNumber));
+      } else {
+        const n = Number(match[1]);
+        if (Number.isInteger(n) && n >= counter) counter = n + 1;
+      }
+
+      seen.add(permitNumber);
+      fields.general_permit_no = permitNumber;
+      update.run(permitNumber, JSON.stringify(fields), row.id);
+    }
+  });
+
+  applyMigration('010_login_attempts', () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS login_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        ip_address TEXT NOT NULL,
+        attempted_at INTEGER NOT NULL,
+        success INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_login_attempts_identity_time ON login_attempts(username, ip_address, attempted_at);
     `);
   });
 }

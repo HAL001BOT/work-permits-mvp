@@ -14,8 +14,13 @@ migrate();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,}$/;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 30 * 60 * 1000;
 
-if (process.env.NODE_ENV === 'production') {
+if (IS_PROD) {
   app.set('trust proxy', 1);
 }
 
@@ -227,11 +232,11 @@ app.use(
     secret: process.env.SESSION_SECRET || 'change-me-in-prod',
     resave: false,
     saveUninitialized: false,
-    proxy: process.env.NODE_ENV === 'production',
+    proxy: IS_PROD,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: IS_PROD ? 'strict' : 'lax',
+      secure: IS_PROD,
       maxAge: 1000 * 60 * 60 * 8,
     },
   })
@@ -241,6 +246,44 @@ app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   next();
 });
+
+function validateSessionSecurityConfig() {
+  if (!IS_PROD) return;
+  const secret = process.env.SESSION_SECRET || '';
+  if (!secret || secret === 'change-me-in-prod' || secret.length < 32) {
+    throw new Error('SESSION_SECRET must be set to a strong value (min 32 chars) in production');
+  }
+}
+
+function validatePasswordStrength(password) {
+  return PASSWORD_RULE.test(String(password || ''));
+}
+
+function passwordRuleMessage() {
+  return 'Password must be at least 12 chars and include uppercase, lowercase, number, and special character.';
+}
+
+function loginIdentity(req, username = '') {
+  return {
+    username: String(username || '').trim().toLowerCase(),
+    ip: String(req.ip || req.connection?.remoteAddress || 'unknown'),
+  };
+}
+
+function isLockedOut(identity) {
+  const now = Date.now();
+  const lockWindowStart = now - LOGIN_LOCKOUT_MS;
+  const failedSince = db.prepare(`SELECT COUNT(1) AS cnt FROM login_attempts WHERE username = ? AND ip_address = ? AND success = 0 AND attempted_at >= ?`).get(identity.username, identity.ip, lockWindowStart);
+  return Number(failedSince?.cnt || 0) >= LOGIN_MAX_ATTEMPTS;
+}
+
+function recordLoginAttempt(identity, success) {
+  db.prepare(`INSERT INTO login_attempts (username, ip_address, attempted_at, success) VALUES (?, ?, ?, ?)`).run(identity.username, identity.ip, Date.now(), success ? 1 : 0);
+  const pruneBefore = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  db.prepare(`DELETE FROM login_attempts WHERE attempted_at < ?`).run(pruneBefore);
+}
+
+validateSessionSecurityConfig();
 
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/login');
@@ -265,12 +308,12 @@ function templateTextForType(type) {
 
 function generateNextGswpTitle() {
   const rows = db
-    .prepare(`SELECT permit_fields_json FROM permits WHERE permit_type = ?`)
+    .prepare(`SELECT permit_number, permit_fields_json FROM permits WHERE permit_type = ? ORDER BY id ASC`)
     .all(PERMIT_TYPES.GENERAL_WORK_SAFE);
 
   let maxNum = -1;
   for (const row of rows) {
-    const permitNo = parsePermitFieldsJson(row.permit_fields_json).general_permit_no || '';
+    const permitNo = row.permit_number || parsePermitFieldsJson(row.permit_fields_json).general_permit_no || '';
     const m = String(permitNo).match(/^(?:SACHEM-)?GSWP-(\d{5})$/);
     if (!m) continue;
     const n = Number(m[1]);
@@ -282,7 +325,7 @@ function generateNextGswpTitle() {
 
 function normalizeDuplicateGswpNumbers() {
   const rows = db
-    .prepare(`SELECT id, permit_fields_json FROM permits WHERE permit_type = ? ORDER BY id ASC`)
+    .prepare(`SELECT id, permit_number, permit_fields_json FROM permits WHERE permit_type = ? ORDER BY id ASC`)
     .all(PERMIT_TYPES.GENERAL_WORK_SAFE);
 
   const seen = new Set();
@@ -290,14 +333,14 @@ function normalizeDuplicateGswpNumbers() {
   const tx = db.transaction(() => {
     for (const row of rows) {
       const fields = parsePermitFieldsJson(row.permit_fields_json);
-      const existing = String(fields.general_permit_no || '');
+      const existing = String(row.permit_number || fields.general_permit_no || '');
       const m = existing.match(/^(?:SACHEM-)?GSWP-(\d{5})$/);
       const normalizedExisting = m ? `GSWP-${m[1]}` : '';
       const isValid = !!normalizedExisting && !seen.has(normalizedExisting);
 
       if (isValid) {
         fields.general_permit_no = normalizedExisting;
-        db.prepare(`UPDATE permits SET permit_fields_json = ? WHERE id = ?`).run(JSON.stringify(fields), row.id);
+        db.prepare(`UPDATE permits SET permit_number = ?, permit_fields_json = ? WHERE id = ?`).run(normalizedExisting, JSON.stringify(fields), row.id);
         seen.add(normalizedExisting);
         const n = Number(m[1]);
         if (n >= counter) counter = n + 1;
@@ -311,7 +354,7 @@ function normalizeDuplicateGswpNumbers() {
       } while (seen.has(next));
 
       fields.general_permit_no = next;
-      db.prepare(`UPDATE permits SET permit_fields_json = ? WHERE id = ?`).run(JSON.stringify(fields), row.id);
+      db.prepare(`UPDATE permits SET permit_number = ?, permit_fields_json = ? WHERE id = ?`).run(next, JSON.stringify(fields), row.id);
       seen.add(next);
     }
   });
@@ -570,6 +613,14 @@ function logAudit(permitId, action, oldValues, newValues, changedBy) {
   ).run(permitId, action, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null, changedBy);
 }
 
+function logAuditIfChanged(permitId, action, oldValues, newValues, changedBy) {
+  if (action === 'update') {
+    const changes = toFriendlyChanges(oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null);
+    if (!changes.length) return;
+  }
+  logAudit(permitId, action, oldValues, newValues, changedBy);
+}
+
 function pickSnapshot(permit) {
   return {
     title: permit.title,
@@ -625,8 +676,8 @@ function syncRequiredChildPermits(parentPermit, requiredTypes, userId) {
     if (existingByType.has(type)) continue;
     const title = `${permitTypeLabel(type)} - for Permit #${parentPermit.id}`;
     db.prepare(
-      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, parent_permit_id, required_permits_json, permit_fields_json)
-       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, '[]', ?)`
+      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, parent_permit_id, required_permits_json, permit_fields_json, permit_number)
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, '[]', ?, NULL)`
     ).run(title, templateTextForType(type), parentPermit.site, parentPermit.permit_date, userId, userId, type, parentPermit.id, JSON.stringify({}));
   }
 }
@@ -714,6 +765,16 @@ function renderPermitFieldsPdf(doc, permit) {
   const values = parsePermitFieldsJson(permit.permit_fields_json);
   if (!schema.length) return;
 
+  const textWidth = 475;
+  const drawField = (label, rawValue) => {
+    const value = rawValue === undefined || rawValue === null || String(rawValue).trim() === '' ? '—' : String(rawValue);
+    const composed = `${label}: ${value}`;
+    doc.font('Helvetica').fontSize(9);
+    const needed = Math.max(16, doc.heightOfString(composed, { width: textWidth, align: 'left' }) + 4);
+    ensurePdfSpace(doc, needed + 2);
+    doc.fillColor('#334155').text(composed, 60, doc.y, { width: textWidth, align: 'left' });
+  };
+
   const grouped = schema.reduce((acc, f) => {
     const section = f.section || 'Form';
     if (!acc[section]) acc[section] = [];
@@ -722,7 +783,7 @@ function renderPermitFieldsPdf(doc, permit) {
   }, {});
 
   Object.entries(grouped).forEach(([section, fields]) => {
-    ensurePdfSpace(doc, 36);
+    ensurePdfSpace(doc, 48);
     doc.moveDown(0.5);
     const sectionTop = doc.y;
     doc.roundedRect(50, sectionTop, 495, 24, 6).fill(BRAND.bgSoft);
@@ -733,18 +794,12 @@ function renderPermitFieldsPdf(doc, permit) {
       if (section === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials' && !Number(values.haz_mobile_equipment)) return;
       let value = values[f.key];
       if (f.type === 'checkbox') value = Number(value) ? 'Yes' : 'No';
-      if (value === undefined || value === null || String(value).trim() === '') value = '—';
-
-      ensurePdfSpace(doc, 16);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text(`${f.label}:`, 60, doc.y, { continued: true });
-      doc.font('Helvetica').fontSize(9).fillColor('#334155').text(` ${value}`);
+      drawField(f.label, value);
     });
 
     if (section === 'Section 1 – Additional Work Permits') {
       const req = parseRequiredPermitsJson(permit.required_permits_json).map((t) => permitTypeLabel(t));
-      ensurePdfSpace(doc, 16);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Selected additional permits:', 60, doc.y, { continued: true });
-      doc.font('Helvetica').fontSize(9).fillColor('#334155').text(` ${req.length ? req.join(', ') : 'None'}`);
+      drawField('Selected additional permits', req.length ? req.join(', ') : 'None');
     }
   });
 }
@@ -793,8 +848,17 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
+  const identity = loginIdentity(req, username);
+
+  if (isLockedOut(identity)) {
+    return res.status(429).render('login', { error: 'Too many failed login attempts. Try again in 30 minutes.' });
+  }
+
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+  const valid = !!(user && bcrypt.compareSync(password, user.password_hash));
+  recordLoginAttempt(identity, valid);
+
+  if (!valid) {
     return res.status(401).render('login', { error: 'Invalid username or password.' });
   }
   req.session.user = { id: user.id, username: user.username, role: user.role };
@@ -822,6 +886,9 @@ app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
   if (!cleanUsername || !password || !Object.values(ROLES).includes(cleanRole)) {
     return res.status(400).render('admin-users', { users, error: 'Username, password, and valid role are required.', success: null, roles: Object.values(ROLES) });
   }
+  if (!validatePasswordStrength(password)) {
+    return res.status(400).render('admin-users', { users, error: passwordRuleMessage(), success: null, roles: Object.values(ROLES) });
+  }
 
   const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(cleanUsername);
   if (exists) {
@@ -836,7 +903,7 @@ app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
 app.post('/admin/users/:id(\\d+)/password', requireAuth, requireAdmin, (req, res) => {
   const { password = '' } = req.body;
   const newPass = String(password);
-  if (!newPass || newPass.length < 6) return res.status(400).redirect('/admin/users?pwerror=1');
+  if (!validatePasswordStrength(newPass)) return res.status(400).redirect('/admin/users?pwerror=1');
 
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).redirect('/admin/users?pwerror=1');
@@ -857,22 +924,31 @@ app.post('/admin/users/:id(\\d+)/profile', requireAuth, requireAdmin, (req, res)
 
 app.get('/permits', requireAuth, (req, res) => {
   const { filters, where, params } = getFilterContext(req.query);
-  const permits = db
+  const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
+  const perPage = Math.min(100, Math.max(10, Number.parseInt(req.query.perPage || '25', 10) || 25));
+  const offset = (page - 1) * perPage;
+
+  const whereSql = `${filters.includeArchived ? '1=1' : 'p.deleted_at IS NULL'} ${where ? `AND ${where.replace(/^WHERE\s+/i, '')}` : ''}`;
+
+  const totalParents = db.prepare(`SELECT COUNT(1) AS cnt FROM permits p WHERE p.parent_permit_id IS NULL AND ${whereSql}`).get(...params).cnt;
+
+  const parents = db
     .prepare(
       `SELECT p.*, c.username AS created_by_name, c.full_name AS created_by_full_name, c.position AS created_by_position,
               u.username AS updated_by_name, u.full_name AS updated_by_full_name, u.position AS updated_by_position
        FROM permits p
        JOIN users c ON c.id = p.created_by
        JOIN users u ON u.id = p.updated_by
-       WHERE ${filters.includeArchived ? '1=1' : 'p.deleted_at IS NULL'} ${where ? `AND ${where.replace(/^WHERE\s+/i, '')}` : ''}
-       ORDER BY p.updated_at DESC`
+       WHERE p.parent_permit_id IS NULL AND ${whereSql}
+       ORDER BY p.updated_at DESC
+       LIMIT ? OFFSET ?`
     )
-    .all(...params)
+    .all(...params, perPage, offset)
     .map((p) => {
       const fields = parsePermitFieldsJson(p.permit_fields_json);
       return {
         ...p,
-        permit_number: fields.general_permit_no || '',
+        permit_number: p.permit_number || fields.general_permit_no || '',
         submitted_by_display: p.created_by_full_name || p.created_by_name,
         actions: {
           canEdit: canEditFields(req.session.user, p),
@@ -882,19 +958,57 @@ app.get('/permits', requireAuth, (req, res) => {
       };
     });
 
-  const statusCounts = statusOptions().reduce((acc, status) => ({ ...acc, [status]: permits.filter((p) => p.status === status).length }), {});
-  const pendingMine = permits.filter((p) => (p.actions.canTransition || []).length > 0).length;
+  let childrenByParent = {};
+  if (parents.length) {
+    const placeholders = parents.map(() => '?').join(',');
+    const childRows = db
+      .prepare(
+        `SELECT p.*, c.username AS created_by_name, c.full_name AS created_by_full_name, c.position AS created_by_position,
+                u.username AS updated_by_name, u.full_name AS updated_by_full_name, u.position AS updated_by_position
+         FROM permits p
+         JOIN users c ON c.id = p.created_by
+         JOIN users u ON u.id = p.updated_by
+         WHERE p.parent_permit_id IN (${placeholders}) ${filters.includeArchived ? '' : 'AND p.deleted_at IS NULL'}
+         ORDER BY p.parent_permit_id ASC, p.updated_at DESC`
+      )
+      .all(...parents.map((p) => p.id))
+      .map((p) => {
+        const fields = parsePermitFieldsJson(p.permit_fields_json);
+        return {
+          ...p,
+          permit_number: p.permit_number || fields.general_permit_no || '',
+          submitted_by_display: p.created_by_full_name || p.created_by_name,
+        };
+      });
+
+    childrenByParent = childRows.reduce((acc, row) => {
+      if (!acc[row.parent_permit_id]) acc[row.parent_permit_id] = [];
+      acc[row.parent_permit_id].push(row);
+      return acc;
+    }, {});
+  }
+
+  const allVisible = parents.flatMap((p) => [p, ...(childrenByParent[p.id] || [])]);
+  const statusCounts = statusOptions().reduce((acc, status) => ({ ...acc, [status]: allVisible.filter((p) => p.status === status).length }), {});
+  const pendingMine = allVisible.filter((p) => (p.actions?.canTransition || []).length > 0).length;
   const submitters = db.prepare('SELECT id, username FROM users ORDER BY username ASC').all();
 
   res.render('permits', {
-    permits,
+    permits: parents,
+    childrenByParent,
     filters,
+    pagination: {
+      page,
+      perPage,
+      total: totalParents,
+      totalPages: Math.max(1, Math.ceil(totalParents / perPage)),
+    },
     submitters,
     statusOptions: statusOptions(),
     permissions: {
       canCreate: canCreatePermit(req.session.user),
     },
-    stats: { total: permits.length, statusCounts, pendingMine },
+    stats: { total: totalParents, statusCounts, pendingMine },
   });
 });
 
@@ -964,22 +1078,40 @@ app.post('/permits', requireAuth, (req, res) => {
     });
   }
 
-  const result = db
-    .prepare(
-      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json, permit_fields_json)
-       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      title,
-      finalDescription,
-      site,
-      permit_date,
-      req.session.user.id,
-      req.session.user.id,
-      PERMIT_TYPES.GENERAL_WORK_SAFE,
-      JSON.stringify(requiredPermits),
-      JSON.stringify(permitFields)
-    );
+  let result;
+  try {
+    result = db
+      .prepare(
+        `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json, permit_fields_json, permit_number)
+         VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        title,
+        finalDescription,
+        site,
+        permit_date,
+        req.session.user.id,
+        req.session.user.id,
+        PERMIT_TYPES.GENERAL_WORK_SAFE,
+        JSON.stringify(requiredPermits),
+        JSON.stringify(permitFields),
+        permitFields.general_permit_no
+      );
+  } catch (err) {
+    if (String(err.message || '').includes('idx_permits_permit_number_active')) {
+      return res.status(409).render('permit-form', {
+        permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
+        action: '/permits',
+        error: 'Permit number conflict detected. Please save again.',
+        supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+        permitTypeLabels: PERMIT_TYPE_LABELS,
+        permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
+        permitFieldValues: { ...permitFields, general_permit_no: generateNextGswpTitle() },
+        fieldErrors: {},
+      });
+    }
+    throw err;
+  }
 
   const parent = getPermitById(result.lastInsertRowid);
   syncRequiredChildPermits(parent, requiredPermits, req.session.user.id);
@@ -1063,16 +1195,32 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
     });
   }
 
-  db.prepare(
-    `UPDATE permits
-     SET title = ?, description = ?, site = ?, permit_date = ?, required_permits_json = ?, permit_fields_json = ?, updated_by = ?, updated_at = datetime('now')
-     WHERE id = ?`
-  ).run(title, description, site, permit_date, JSON.stringify(requiredPermits), JSON.stringify(permitFields), req.session.user.id, req.params.id);
+  try {
+    db.prepare(
+      `UPDATE permits
+       SET title = ?, description = ?, site = ?, permit_date = ?, required_permits_json = ?, permit_fields_json = ?, permit_number = ?, updated_by = ?, updated_at = datetime('now')
+       WHERE id = ?`
+    ).run(title, description, site, permit_date, JSON.stringify(requiredPermits), JSON.stringify(permitFields), permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? permitFields.general_permit_no : null, req.session.user.id, req.params.id);
+  } catch (err) {
+    if (String(err.message || '').includes('idx_permits_permit_number_active')) {
+      return res.status(409).render('permit-form', {
+        permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
+        action: `/permits/${req.params.id}`,
+        error: 'Permit number conflict detected. Please save again.',
+        supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+        permitTypeLabels: PERMIT_TYPE_LABELS,
+        permitFieldSchema: fieldSchemaForType(permitType),
+        permitFieldValues: { ...permitFields, general_permit_no: generateNextGswpTitle() },
+        fieldErrors: {},
+      });
+    }
+    throw err;
+  }
 
   const updated = getPermitById(req.params.id);
   syncRequiredChildPermits(updated, requiredPermits, req.session.user.id);
 
-  logAudit(req.params.id, 'update', pickSnapshot(permit), pickSnapshot(updated), req.session.user.id);
+  logAuditIfChanged(req.params.id, 'update', pickSnapshot(permit), pickSnapshot(updated), req.session.user.id);
   res.redirect(`/permits/${req.params.id}`);
 });
 
@@ -1090,15 +1238,22 @@ app.post('/permits/:id(\\d+)/autosave', requireAuth, (req, res) => {
   const site = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'Cleburne' : (req.body.site || permit.site);
   const permitDate = req.body.permit_date || permit.permit_date;
 
-  db.prepare(`UPDATE permits SET site = ?, permit_date = ?, permit_fields_json = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(
-    site,
-    permitDate,
-    JSON.stringify(permitFields),
-    req.session.user.id,
-    permit.id
-  );
+  const existingPayload = JSON.stringify(existingFields);
+  const nextPayload = JSON.stringify(permitFields);
+  const changed = permit.site !== site || permit.permit_date !== permitDate || existingPayload !== nextPayload;
 
-  res.json({ ok: true, savedAt: new Date().toISOString() });
+  if (changed) {
+    db.prepare(`UPDATE permits SET site = ?, permit_date = ?, permit_fields_json = ?, permit_number = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(
+      site,
+      permitDate,
+      nextPayload,
+      permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? permitFields.general_permit_no : null,
+      req.session.user.id,
+      permit.id
+    );
+  }
+
+  res.json({ ok: true, changed, savedAt: new Date().toISOString() });
 });
 
 app.post('/permits/:id(\\d+)/populate-template', requireAuth, (req, res) => {
@@ -1174,8 +1329,12 @@ app.post('/permits/:id(\\d+)/delete', requireAuth, (req, res) => {
   const permit = getPermitById(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
-  db.prepare(`UPDATE permits SET deleted_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(req.session.user.id, permit.id);
-  logAudit(permit.id, 'archive', pickSnapshot(permit), { ...pickSnapshot(permit), deleted_at: 'now' }, req.session.user.id);
+  const tx = db.transaction(() => {
+    db.prepare(`UPDATE permits SET deleted_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ? OR parent_permit_id = ?`).run(req.session.user.id, permit.id, permit.id);
+    logAudit(permit.id, 'archive', pickSnapshot(permit), { ...pickSnapshot(permit), deleted_at: 'now' }, req.session.user.id);
+  });
+
+  tx();
   res.redirect('/permits');
 });
 
@@ -1184,7 +1343,7 @@ app.post('/permits/:id(\\d+)/restore', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
-  db.prepare(`UPDATE permits SET deleted_at = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(req.session.user.id, req.params.id);
+  db.prepare(`UPDATE permits SET deleted_at = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ? OR parent_permit_id = ?`).run(req.session.user.id, req.params.id, req.params.id);
   res.redirect('/permits?includeArchived=1');
 });
 
@@ -1277,13 +1436,24 @@ app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT id, revision FROM permits WHERE id = ?').get(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
+  const actionFilter = String(req.query.action || '').trim();
+  const actorFilter = String(req.query.actor || '').trim();
+  const hideNoDiff = req.query.hideNoDiff === '1';
+
   if (Number(permit.revision || 0) <= 1) {
-    return res.render('audit', { permitId: req.params.id, auditRows: [] });
+    return res.render('audit', { permitId: req.params.id, auditRows: [], filters: { action: actionFilter, actor: actorFilter, hideNoDiff: hideNoDiff ? '1' : '' }, actors: [] });
   }
 
-  const auditRows = db
-    .prepare(`SELECT a.*, u.username FROM permit_audit a JOIN users u ON u.id = a.changed_by WHERE a.permit_id = ? ORDER BY a.changed_at DESC`)
-    .all(req.params.id)
+  const clauses = ['a.permit_id = ?'];
+  const args = [req.params.id];
+  if (actionFilter) { clauses.push('a.action = ?'); args.push(actionFilter); }
+  if (actorFilter) { clauses.push('u.username = ?'); args.push(actorFilter); }
+
+  const rows = db
+    .prepare(`SELECT a.*, u.username FROM permit_audit a JOIN users u ON u.id = a.changed_by WHERE ${clauses.join(' AND ')} ORDER BY a.changed_at DESC`)
+    .all(...args);
+
+  const auditRows = rows
     .map((row) => ({
       ...row,
       changedAtPretty: formatDate(row.changed_at),
@@ -1291,9 +1461,17 @@ app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
       changes: toFriendlyChanges(row.old_values, row.new_values),
       oldRaw: row.old_values,
       newRaw: row.new_values,
-    }));
+    }))
+    .filter((r) => !hideNoDiff || r.changes.length);
 
-  res.render('audit', { permitId: req.params.id, auditRows });
+  const actors = db.prepare(`SELECT DISTINCT u.username FROM permit_audit a JOIN users u ON u.id = a.changed_by WHERE a.permit_id = ? ORDER BY u.username ASC`).all(req.params.id).map((r) => r.username);
+
+  res.render('audit', {
+    permitId: req.params.id,
+    auditRows,
+    actors,
+    filters: { action: actionFilter, actor: actorFilter, hideNoDiff: hideNoDiff ? '1' : '' },
+  });
 });
 
 app.get('/permits/:id(\\d+)/export.pdf', requireAuth, (req, res) => {
@@ -1323,6 +1501,10 @@ app.use((err, _req, res, _next) => {
   return res.status(500).send('Unexpected server error');
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Work permits app running on http://0.0.0.0:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Work permits app running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+module.exports = { app, db, migrate };
