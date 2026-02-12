@@ -73,7 +73,7 @@
                   <div class="row gap wrap">
                     <a href="/permits/<%= p.id %>">View</a>
                     <% if (p.actions.canEdit) { %><a href="/permits/<%= p.id %>/edit">Edit</a><% } %>
-                    <a href="/permits/<%= p.id %>/audit">Audit</a>
+                    <% if (Number(p.revision || 0) > 1) { %><a href="/permits/<%= p.id %>/audit">Audit</a><% } %>
                     <% if (p.actions.canDelete) { %>
                       <form method="post" action="/permits/<%= p.id %>/delete" onsubmit="return confirm('Delete permit #<%= p.id %>?');"><button type="submit" class="danger-link">Delete</button></form>
                     <% } %>

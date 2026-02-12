@@ -15,7 +15,7 @@
       </div>
       <div class="row gap wrap">
         <a class="button ghost" href="/permits">Back</a>
-        <a class="button" href="/permits/<%= permit.id %>/audit">Audit Trail</a>
+        <% if (Number(permit.revision || 0) > 1) { %><a class="button" href="/permits/<%= permit.id %>/audit">Audit Trail</a><% } %>
         <a class="button" href="/permits/<%= permit.id %>/export.pdf">Export PDF</a>
         <% if (permissions.canEdit) { %>
           <a class="button primary" href="/permits/<%= permit.id %>/edit">Edit Permit</a>
