@@ -1025,7 +1025,7 @@ app.post('/permits/:id(\\d+)/transition', requireAuth, (req, res) => {
   if (!allowed.includes(action)) return res.status(403).send('Transition not allowed');
 
   const transitionRequirementError = validateGeneralTransitionRequirements(permit, action);
-  if (transitionRequirementError) return res.status(400).send(transitionRequirementError);
+  if (transitionRequirementError) return res.redirect(`/permits/${permit.id}?workflowError=${encodeURIComponent(transitionRequirementError)}`);
 
   const tx = db.transaction(() => {
     if (action === 'submit') {
@@ -1060,7 +1060,7 @@ app.post('/permits/:id(\\d+)/transition', requireAuth, (req, res) => {
     tx();
     res.redirect(`/permits/${permit.id}`);
   } catch (err) {
-    res.status(400).send(err.message);
+    res.redirect(`/permits/${permit.id}?workflowError=${encodeURIComponent(err.message || 'Workflow action failed')}`);
   }
 });
 
@@ -1114,6 +1114,7 @@ app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
     permit,
     recentAudit,
     attachments,
+    workflowError: req.query.workflowError || null,
     permitTypeLabels: PERMIT_TYPE_LABELS,
     requiredPermitTypes,
     childPermits,

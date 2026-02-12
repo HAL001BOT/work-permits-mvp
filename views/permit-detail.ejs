@@ -41,6 +41,7 @@
 
       <article class="card">
         <h2 class="section-title">Workflow Actions</h2>
+        <% if (workflowError) { %><p class="error"><%= workflowError %></p><% } %>
         <% if (!permissions.transitions.length) { %>
           <p class="muted">No transitions available for your role.</p>
         <% } else { %>
