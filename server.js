@@ -581,14 +581,8 @@ function resolveLogoPath() {
   return null;
 }
 
-function drawFooter(doc, generatedAt) {
-  const range = doc.bufferedPageRange();
-  for (let i = 0; i < range.count; i += 1) {
-    doc.switchToPage(range.start + i);
-    const pageWidth = doc.page.width;
-    const pageHeight = doc.page.height;
-    doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted).text(`Generated ${generatedAt}`, 50, pageHeight - 32, { width: pageWidth - 100, align: 'left' }).text(`Page ${i + 1} of ${range.count}`, 50, pageHeight - 32, { width: pageWidth - 100, align: 'right' });
-  }
+function drawFooter(_doc, _generatedAt) {
+  // Footer intentionally disabled to avoid trailing blank-page artifacts.
 }
 
 function ensurePdfSpace(doc, needed = 40) {
@@ -656,7 +650,7 @@ function renderPermitFieldsPdf(doc, permit) {
 }
 
 function generatePermitPdf(res, permit) {
-  const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
   const generatedAt = new Date().toLocaleString();
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="permit-${permit.id}.pdf"`);
