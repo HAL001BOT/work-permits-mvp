@@ -66,12 +66,12 @@ const TEMPLATE_TEXT_BY_TYPE = {
 
 const PERMIT_FIELD_SCHEMAS = {
   [PERMIT_TYPES.GENERAL_WORK_SAFE]: [
-    { key: 'general_permit_no', label: 'General Work Permit Number', type: 'text', section: 'General Information' },
+    { key: 'general_permit_no', label: 'General Work Permit Number', type: 'text', readOnly: true, section: 'General Information' },
     { key: 'start_time', label: 'Start Time', type: 'time', section: 'General Information' },
     { key: 'start_date', label: 'Start Date', type: 'date', section: 'General Information' },
     { key: 'building_location', label: 'Building / Location', type: 'select', options: ['Manufacturing building', 'Production building', 'Tanks'], section: 'General Information' },
     { key: 'contractor_company', label: 'Contractor Company', type: 'text', section: 'General Information' },
-    { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C'], section: 'General Information' },
+    { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C', 'D'], section: 'General Information' },
     { key: 'equipment', label: 'Equipment Being Worked On', type: 'text', section: 'General Information' },
     { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text', section: 'General Information' },
     { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'text', section: 'General Information' },
@@ -663,11 +663,11 @@ app.get('/permits', requireAuth, (req, res) => {
 app.get('/permits/new', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   res.render('permit-form', {
-    permit: { title: generateNextGswpTitle(), site: 'Cleburne', permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE },
+    permit: { title: 'General safe work permit', site: 'Cleburne', permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE },
     action: '/permits',
     error: null,
     permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
-    permitFieldValues: {},
+    permitFieldValues: { general_permit_no: generateNextGswpTitle() },
     supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
     permitTypeLabels: PERMIT_TYPE_LABELS,
   });
@@ -676,11 +676,11 @@ app.get('/permits/new', requireAuth, (req, res) => {
 app.post('/permits', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   const { description = '', permit_date } = req.body;
-  const title = generateNextGswpTitle();
+  const title = 'General safe work permit';
   const site = 'Cleburne';
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
   const permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
-  permitFields.general_permit_no = title;
+  permitFields.general_permit_no = generateNextGswpTitle();
   const finalDescription = (description || '').trim() || templateTextForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
   const startDate = permitFields.start_date || '';
 
@@ -754,11 +754,14 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
 
   const { description = '', permit_date } = req.body;
   const permitType = permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE;
-  const title = permit.title;
+  const title = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'General safe work permit' : permit.title;
   const site = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'Cleburne' : (req.body.site || permit.site);
   const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
   const permitFields = extractPermitFieldsFromBody(req.body, permitType);
-  if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE) permitFields.general_permit_no = title;
+  if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE) {
+    const existingNumber = parsePermitFieldsJson(permit.permit_fields_json).general_permit_no;
+    permitFields.general_permit_no = existingNumber || generateNextGswpTitle();
+  }
 
   if (!permit_date) {
     return res.status(400).render('permit-form', {
