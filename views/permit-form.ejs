@@ -46,14 +46,15 @@
               <% fields.forEach(f => { %>
                 <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits')) { %>
                   <label>
-                    <%= f.label %>
+                    <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                     <% if (f.type === 'textarea') { %>
                       <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
                     <% } else if (f.type === 'checkbox') { %>
-                      <span class="row gap" style="align-items:center; margin-top:6px;">
+                      <span class="check-option" style="margin-top:6px;">
                         <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
                         <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
-                        <span class="muted"><%= f.forcedTrue ? 'Required' : 'Yes' %></span>
+                        <span><%= f.label %></span>
+                        <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
                       </span>
                     <% } else if (f.type === 'select') { %>
                       <select name="pf__<%= f.key %>">
