@@ -21,6 +21,14 @@ body {
 .auth-layout { min-height: 75vh; display: flex; align-items: center; }
 
 .page-header h1 { margin: 0 0 6px; }
+.header-brand { align-items: center; }
+.header-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
 .muted { color: var(--muted); }
 
 .card {
