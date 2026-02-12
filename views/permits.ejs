@@ -65,7 +65,7 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th class="id-col">ID</th><th>Permit Number</th><th>Status</th><th>Permit Date</th><th>By</th></tr></thead>
+          <thead><tr><th class="id-col">ID</th><th>Permit Number</th><th>Permit Date</th><th>By</th><th>Status</th></tr></thead>
           <tbody>
             <%
               const childMap = {};
@@ -90,18 +90,18 @@
                   <span><%= p.id %></span>
                 </td>
                 <td><strong><%= p.permit_number || p.title %></strong></td>
-                <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
                 <td><%= p.permit_date %></td>
                 <td><%= p.updated_by_name %></td>
+                <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
               </tr>
 
               <% children.forEach(c => { %>
                 <tr class="child-row child-of-<%= p.id %> click-row" data-href="/permits/<%= c.id %>" style="display:none; background:#f8fafc;">
                   <td class="id-col child-id-col">↳ <%= c.id %></td>
                   <td><strong><%= c.permit_number || c.title %></strong></td>
-                  <td><span class="status-pill status-<%= c.status %>"><%= c.status %></span></td>
                   <td><%= c.permit_date %></td>
                   <td><%= c.updated_by_name %></td>
+                  <td><span class="status-pill status-<%= c.status %>"><%= c.status %></span></td>
                 </tr>
               <% }) %>
             <% }) %>
