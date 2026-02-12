@@ -623,21 +623,26 @@ function renderPermitFieldsPdf(doc, permit) {
   }, {});
 
   Object.entries(grouped).forEach(([section, fields]) => {
-    doc.moveDown(0.7);
-    doc.font('Helvetica-Bold').fontSize(11).fillColor(BRAND.primaryDark).text(section);
-    doc.moveDown(0.3);
+    doc.moveDown(0.8);
+    const sectionTop = doc.y;
+    doc.roundedRect(50, sectionTop, 495, 24, 6).fill(BRAND.bgSoft);
+    doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(11).text(section, 60, sectionTop + 7);
+    doc.y = sectionTop + 30;
 
     fields.forEach((f) => {
       if (section === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials' && !Number(values.haz_mobile_equipment)) return;
       let value = values[f.key];
       if (f.type === 'checkbox') value = Number(value) ? 'Yes' : 'No';
       if (value === undefined || value === null || String(value).trim() === '') value = '—';
-      doc.font('Helvetica').fontSize(9).fillColor('#0f172a').text(`${f.label}: ${value}`);
+
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text(`${f.label}:`, 60, doc.y, { continued: true });
+      doc.font('Helvetica').fontSize(9).fillColor('#334155').text(` ${value}`);
     });
 
     if (section === 'Section 1 – Additional Work Permits') {
       const req = parseRequiredPermitsJson(permit.required_permits_json).map((t) => permitTypeLabel(t));
-      doc.font('Helvetica').fontSize(9).fillColor('#0f172a').text(`Selected additional permits: ${req.length ? req.join(', ') : 'None'}`);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a').text('Selected additional permits:', 60, doc.y, { continued: true });
+      doc.font('Helvetica').fontSize(9).fillColor('#334155').text(` ${req.length ? req.join(', ') : 'None'}`);
     }
   });
 }
