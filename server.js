@@ -422,7 +422,7 @@ function statusOptions() {
 }
 
 function getFilterContext(query) {
-  const { status = '', site = '', startDate = '', endDate = '' } = query;
+  const { status = '', creator = '', startDate = '', endDate = '' } = query;
   const clauses = [];
   const params = [];
 
@@ -430,9 +430,9 @@ function getFilterContext(query) {
     clauses.push('p.status = ?');
     params.push(status);
   }
-  if (site) {
-    clauses.push('p.site LIKE ?');
-    params.push(`%${site}%`);
+  if (creator) {
+    clauses.push('c.username LIKE ?');
+    params.push(`%${creator}%`);
   }
   if (startDate) {
     clauses.push('p.permit_date >= ?');
@@ -444,7 +444,7 @@ function getFilterContext(query) {
   }
 
   return {
-    filters: { status, site, startDate, endDate },
+    filters: { status, creator, startDate, endDate },
     where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
     params,
   };
@@ -1205,9 +1205,8 @@ app.get('/permits/:id(\\d+)/export.pdf', requireAuth, (req, res) => {
 
 app.get('/permits/export.csv', requireAuth, (req, res) => {
   const { where, params } = getFilterContext(req.query);
-  const whereNoAlias = where.replace(/p\./g, '');
   const rows = db
-    .prepare(`SELECT id,title,description,site,status,permit_type,parent_permit_id,required_permits_json,permit_date,revision,is_locked,approver_name,approved_at,created_at,updated_at FROM permits ${whereNoAlias} ORDER BY updated_at DESC`)
+    .prepare(`SELECT p.id,p.title,p.description,p.site,p.status,p.permit_type,p.parent_permit_id,p.required_permits_json,p.permit_date,p.revision,p.is_locked,p.approver_name,p.approved_at,p.created_at,p.updated_at FROM permits p JOIN users c ON c.id = p.created_by ${where} ORDER BY p.updated_at DESC`)
     .all(...params);
 
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
