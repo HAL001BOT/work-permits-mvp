@@ -95,20 +95,39 @@
         <% if (!permitFieldSchema?.length) { %>
           <p class="muted">No structured fields for this permit type.</p>
         <% } else { %>
-          <dl class="detail-list">
-            <% permitFieldSchema.forEach(f => { %>
-              <div>
-                <dt><%= f.label %></dt>
-                <dd>
-                  <% if (f.type === 'checkbox') { %>
-                    <%= Number(permitFieldValues[f.key]) ? 'Yes' : 'No' %>
-                  <% } else { %>
-                    <%= permitFieldValues[f.key] || '—' %>
-                  <% } %>
-                </dd>
-              </div>
-            <% }) %>
-          </dl>
+          <%
+            const grouped = permitFieldSchema.reduce((acc, f) => {
+              const section = f.section || 'Form';
+              if (!acc[section]) acc[section] = [];
+              acc[section].push(f);
+              return acc;
+            }, {});
+          %>
+          <% Object.entries(grouped).forEach(([sectionName, fields]) => { %>
+            <fieldset style="margin-bottom:12px;">
+              <legend><%= sectionName %></legend>
+              <dl class="detail-list">
+                <% fields.forEach(f => { %>
+                  <div>
+                    <dt><%= f.label %></dt>
+                    <dd>
+                      <% if (f.type === 'checkbox') { %>
+                        <%= Number(permitFieldValues[f.key]) ? 'Yes' : 'No' %>
+                      <% } else { %>
+                        <%= permitFieldValues[f.key] || '—' %>
+                      <% } %>
+                    </dd>
+                  </div>
+                <% }) %>
+                <% if (sectionName === 'Section 1 – Additional Work Permits' && requiredPermitTypes?.length) { %>
+                  <div>
+                    <dt>Selected additional permits</dt>
+                    <dd><%= requiredPermitTypes.map(t => permitTypeLabels[t]).join(', ') %></dd>
+                  </div>
+                <% } %>
+              </dl>
+            </fieldset>
+          <% }) %>
         <% } %>
       </article>
 
