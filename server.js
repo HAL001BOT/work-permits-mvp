@@ -494,19 +494,49 @@ function toDisplayValue(field, value) {
   return String(value);
 }
 
+function permitFieldLabel(key) {
+  for (const schema of Object.values(PERMIT_FIELD_SCHEMAS)) {
+    const found = schema.find((f) => f.key === key);
+    if (found) return found.label;
+  }
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function toFriendlyChanges(oldValues, newValues) {
   const oldObj = safeParseJson(oldValues) || {};
   const newObj = safeParseJson(newValues) || {};
   const keys = Array.from(new Set([...Object.keys(oldObj), ...Object.keys(newObj)]));
 
-  return keys
-    .filter((k) => String(oldObj[k] ?? '') !== String(newObj[k] ?? ''))
-    .map((field) => ({
+  const changes = [];
+
+  for (const field of keys) {
+    if (field === 'permit_fields') {
+      const oldFields = oldObj.permit_fields || {};
+      const newFields = newObj.permit_fields || {};
+      const fieldKeys = Array.from(new Set([...Object.keys(oldFields), ...Object.keys(newFields)]));
+
+      for (const fk of fieldKeys) {
+        if (String(oldFields[fk] ?? '') === String(newFields[fk] ?? '')) continue;
+        changes.push({
+          field: `permit_fields.${fk}`,
+          label: permitFieldLabel(fk),
+          oldValue: toDisplayValue(fk, oldFields[fk]),
+          newValue: toDisplayValue(fk, newFields[fk]),
+        });
+      }
+      continue;
+    }
+
+    if (String(oldObj[field] ?? '') === String(newObj[field] ?? '')) continue;
+    changes.push({
       field,
       label: AUDIT_FIELD_LABELS[field] || field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       oldValue: toDisplayValue(field, oldObj[field]),
       newValue: toDisplayValue(field, newObj[field]),
-    }));
+    });
+  }
+
+  return changes;
 }
 
 function logAudit(permitId, action, oldValues, newValues, changedBy) {
