@@ -137,6 +137,13 @@ function migrate() {
       ALTER TABLE users ADD COLUMN position TEXT NOT NULL DEFAULT '';
     `);
   });
+
+  applyMigration('008_soft_delete_permits', () => {
+    db.exec(`
+      ALTER TABLE permits ADD COLUMN deleted_at TEXT;
+      CREATE INDEX IF NOT EXISTS idx_permits_deleted_at ON permits(deleted_at);
+    `);
+  });
 }
 
 module.exports = {

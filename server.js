@@ -344,6 +344,20 @@ function extractPermitFieldsFromBody(body, permitType) {
   return fields;
 }
 
+function mergePermitFieldsByRole(existingFields, incomingFields, permitType, user) {
+  if (permitType !== PERMIT_TYPES.GENERAL_WORK_SAFE) return incomingFields;
+  const merged = { ...incomingFields };
+  const schema = fieldSchemaForType(permitType);
+  const canEditSection5 = hasAnyRole(user, [ROLES.ADMIN, ROLES.SUPERVISOR]);
+
+  for (const f of schema) {
+    if (!canEditSection5 && f.section === 'Section 5 – Approval & Closeout') {
+      merged[f.key] = existingFields[f.key];
+    }
+  }
+  return merged;
+}
+
 function parseRequiredPermitsJson(value) {
   if (!value) return [];
   try {
@@ -361,16 +375,17 @@ function normalizeRequiredPermits(input) {
 }
 
 function validatePermitFields(permitType, permitFields) {
-  if (permitType !== PERMIT_TYPES.GENERAL_WORK_SAFE) return null;
+  if (permitType !== PERMIT_TYPES.GENERAL_WORK_SAFE) return { message: null, fieldErrors: {} };
 
+  const fieldErrors = {};
   const schema = fieldSchemaForType(permitType);
   for (const f of schema) {
     if (!f.required) continue;
     const val = permitFields[f.key];
     if (f.type === 'checkbox') {
-      if (!Number(val)) return `${f.label} is required.`;
+      if (!Number(val)) fieldErrors[f.key] = 'Required';
     } else if (!String(val || '').trim()) {
-      return `${f.label} is required.`;
+      fieldErrors[f.key] = 'Required';
     }
   }
 
@@ -381,9 +396,13 @@ function validatePermitFields(permitType, permitFields) {
     'haz_spilled_chemical', 'haz_environmental_exposure', 'haz_confined_space',
   ];
   const selectedHazards = hazardKeys.filter((k) => Number(permitFields[k]));
-  if (!selectedHazards.length) return 'Section 3 requires at least one hazard selected.';
+  if (!selectedHazards.length) fieldErrors.hazards_group = 'Select at least one hazard';
 
-  return null;
+  const firstError = Object.keys(fieldErrors)[0];
+  return {
+    message: firstError ? (fieldErrors[firstError] === 'Required' ? 'Please complete all required fields.' : fieldErrors[firstError]) : null,
+    fieldErrors,
+  };
 }
 
 function isGeneralPermit(permit) {
@@ -427,7 +446,7 @@ function statusOptions() {
 }
 
 function getFilterContext(query) {
-  const { status = '', submittedBy = '', startDate = '', endDate = '' } = query;
+  const { status = '', submittedBy = '', startDate = '', endDate = '', includeArchived = '' } = query;
   const clauses = [];
   const params = [];
 
@@ -449,7 +468,7 @@ function getFilterContext(query) {
   }
 
   return {
-    filters: { status, submittedBy, startDate, endDate },
+    filters: { status, submittedBy, startDate, endDate, includeArchived: includeArchived ? '1' : '' },
     where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
     params,
   };
@@ -573,11 +592,12 @@ function pickSnapshot(permit) {
 function getPermitById(id) {
   return db
     .prepare(
-      `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
+      `SELECT p.*, c.username AS created_by_name, c.full_name AS created_by_full_name, c.position AS created_by_position,
+              u.username AS updated_by_name, u.full_name AS updated_by_full_name, u.position AS updated_by_position
        FROM permits p
        JOIN users c ON c.id = p.created_by
        JOIN users u ON u.id = p.updated_by
-       WHERE p.id = ?`
+       WHERE p.id = ? AND p.deleted_at IS NULL`
     )
     .get(id);
 }
@@ -585,11 +605,12 @@ function getPermitById(id) {
 function getChildPermits(parentPermitId) {
   return db
     .prepare(
-      `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
+      `SELECT p.*, c.username AS created_by_name, c.full_name AS created_by_full_name, c.position AS created_by_position,
+              u.username AS updated_by_name, u.full_name AS updated_by_full_name, u.position AS updated_by_position
        FROM permits p
        JOIN users c ON c.id = p.created_by
        JOIN users u ON u.id = p.updated_by
-       WHERE p.parent_permit_id = ?
+       WHERE p.parent_permit_id = ? AND p.deleted_at IS NULL
        ORDER BY p.id ASC`
     )
     .all(parentPermitId);
@@ -739,8 +760,10 @@ function generatePermitPdf(res, permit) {
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
   doc.text(`Site: ${permit.site || '-'}`);
   doc.text(`Permit End Date: ${permit.permit_date || '-'}`);
-  doc.text(`Created By: ${permit.created_by_name}`);
-  doc.text(`Updated By: ${permit.updated_by_name}`);
+  const createdByDisplay = permit.created_by_full_name ? `${permit.created_by_full_name}${permit.created_by_position ? ` (${permit.created_by_position})` : ''}` : permit.created_by_name;
+  const updatedByDisplay = permit.updated_by_full_name ? `${permit.updated_by_full_name}${permit.updated_by_position ? ` (${permit.updated_by_position})` : ''}` : permit.updated_by_name;
+  doc.text(`Created By: ${createdByDisplay}`);
+  doc.text(`Updated By: ${updatedByDisplay}`);
   doc.text(`Locked: ${permit.is_locked ? 'Yes' : 'No'}`);
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
   if (permit.signature_text) doc.text(`Signature: ${permit.signature_text}`);
@@ -826,11 +849,12 @@ app.get('/permits', requireAuth, (req, res) => {
   const { filters, where, params } = getFilterContext(req.query);
   const permits = db
     .prepare(
-      `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
+      `SELECT p.*, c.username AS created_by_name, c.full_name AS created_by_full_name, c.position AS created_by_position,
+              u.username AS updated_by_name, u.full_name AS updated_by_full_name, u.position AS updated_by_position
        FROM permits p
        JOIN users c ON c.id = p.created_by
        JOIN users u ON u.id = p.updated_by
-       ${where}
+       WHERE ${filters.includeArchived ? '1=1' : 'p.deleted_at IS NULL'} ${where ? `AND ${where.replace(/^WHERE\s+/i, '')}` : ''}
        ORDER BY p.updated_at DESC`
     )
     .all(...params)
@@ -839,6 +863,7 @@ app.get('/permits', requireAuth, (req, res) => {
       return {
         ...p,
         permit_number: fields.general_permit_no || '',
+        submitted_by_display: p.created_by_full_name ? `${p.created_by_full_name}${p.created_by_position ? ` (${p.created_by_position})` : ''}` : p.created_by_name,
         actions: {
           canEdit: canEditFields(req.session.user, p),
           canDelete: canDeletePermit(req.session.user),
@@ -848,6 +873,7 @@ app.get('/permits', requireAuth, (req, res) => {
     });
 
   const statusCounts = statusOptions().reduce((acc, status) => ({ ...acc, [status]: permits.filter((p) => p.status === status).length }), {});
+  const pendingMine = permits.filter((p) => (p.actions.canTransition || []).length > 0).length;
   const submitters = db.prepare('SELECT id, username FROM users ORDER BY username ASC').all();
 
   res.render('permits', {
@@ -858,7 +884,7 @@ app.get('/permits', requireAuth, (req, res) => {
     permissions: {
       canCreate: canCreatePermit(req.session.user),
     },
-    stats: { total: permits.length, statusCounts },
+    stats: { total: permits.length, statusCounts, pendingMine },
   });
 });
 
@@ -870,6 +896,7 @@ app.get('/permits/new', requireAuth, (req, res) => {
     error: null,
     permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
     permitFieldValues: { general_permit_no: generateNextGswpTitle() },
+    fieldErrors: {},
     supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
     permitTypeLabels: PERMIT_TYPE_LABELS,
   });
@@ -881,7 +908,8 @@ app.post('/permits', requireAuth, (req, res) => {
   const title = 'General safe work permit';
   const site = 'Cleburne';
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
-  const permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
+  let permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
+  permitFields = mergePermitFieldsByRole({}, permitFields, PERMIT_TYPES.GENERAL_WORK_SAFE, req.session.user);
   permitFields.general_permit_no = generateNextGswpTitle();
   const finalDescription = (description || '').trim();
   const startDate = permitFields.start_date || '';
@@ -895,6 +923,7 @@ app.post('/permits', requireAuth, (req, res) => {
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
       permitFieldValues: permitFields,
+      fieldErrors: {},
     });
   }
 
@@ -907,19 +936,21 @@ app.post('/permits', requireAuth, (req, res) => {
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
       permitFieldValues: permitFields,
+      fieldErrors: { start_date: 'Start date must be on/before end date' },
     });
   }
 
-  const gswpValidationError = validatePermitFields(PERMIT_TYPES.GENERAL_WORK_SAFE, permitFields);
-  if (gswpValidationError) {
+  const gswpValidation = validatePermitFields(PERMIT_TYPES.GENERAL_WORK_SAFE, permitFields);
+  if (gswpValidation.message) {
     return res.status(400).render('permit-form', {
       permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
       action: '/permits',
-      error: gswpValidationError,
+      error: gswpValidation.message,
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
       permitFieldValues: permitFields,
+      fieldErrors: gswpValidation.fieldErrors,
     });
   }
 
@@ -959,6 +990,7 @@ app.get('/permits/:id(\\d+)/edit', requireAuth, (req, res) => {
     permitTypeLabels: PERMIT_TYPE_LABELS,
     permitFieldSchema: fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE),
     permitFieldValues: parsePermitFieldsJson(permit.permit_fields_json),
+    fieldErrors: {},
   });
 });
 
@@ -972,9 +1004,11 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   const title = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'General safe work permit' : permit.title;
   const site = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'Cleburne' : (req.body.site || permit.site);
   const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
-  const permitFields = extractPermitFieldsFromBody(req.body, permitType);
+  const existingFields = parsePermitFieldsJson(permit.permit_fields_json);
+  let permitFields = extractPermitFieldsFromBody(req.body, permitType);
+  permitFields = mergePermitFieldsByRole(existingFields, permitFields, permitType, req.session.user);
   if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE) {
-    const existingNumber = parsePermitFieldsJson(permit.permit_fields_json).general_permit_no;
+    const existingNumber = existingFields.general_permit_no;
     permitFields.general_permit_no = existingNumber || generateNextGswpTitle();
   }
 
@@ -987,6 +1021,7 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(permitType),
       permitFieldValues: permitFields,
+      fieldErrors: {},
     });
   }
 
@@ -1000,19 +1035,21 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(permitType),
       permitFieldValues: permitFields,
+      fieldErrors: { start_date: 'Start date must be on/before end date' },
     });
   }
 
-  const gswpValidationError = validatePermitFields(permitType, permitFields);
-  if (gswpValidationError) {
+  const gswpValidation = validatePermitFields(permitType, permitFields);
+  if (gswpValidation.message) {
     return res.status(400).render('permit-form', {
       permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
       action: `/permits/${req.params.id}`,
-      error: gswpValidationError,
+      error: gswpValidation.message,
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(permitType),
       permitFieldValues: permitFields,
+      fieldErrors: gswpValidation.fieldErrors,
     });
   }
 
@@ -1027,6 +1064,31 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
 
   logAudit(req.params.id, 'update', pickSnapshot(permit), pickSnapshot(updated), req.session.user.id);
   res.redirect(`/permits/${req.params.id}`);
+});
+
+app.post('/permits/:id(\\d+)/autosave', requireAuth, (req, res) => {
+  const permit = getPermitById(req.params.id);
+  if (!permit) return res.status(404).json({ ok: false, error: 'Permit not found' });
+  if (!canEditFields(req.session.user, permit)) return res.status(403).json({ ok: false, error: 'Forbidden' });
+
+  const permitType = permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE;
+  const existingFields = parsePermitFieldsJson(permit.permit_fields_json);
+  let permitFields = extractPermitFieldsFromBody(req.body, permitType);
+  permitFields = mergePermitFieldsByRole(existingFields, permitFields, permitType, req.session.user);
+  if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE) permitFields.general_permit_no = existingFields.general_permit_no || generateNextGswpTitle();
+
+  const site = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'Cleburne' : (req.body.site || permit.site);
+  const permitDate = req.body.permit_date || permit.permit_date;
+
+  db.prepare(`UPDATE permits SET site = ?, permit_date = ?, permit_fields_json = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(
+    site,
+    permitDate,
+    JSON.stringify(permitFields),
+    req.session.user.id,
+    permit.id
+  );
+
+  res.json({ ok: true, savedAt: new Date().toISOString() });
 });
 
 app.post('/permits/:id(\\d+)/populate-template', requireAuth, (req, res) => {
@@ -1065,7 +1127,8 @@ app.post('/permits/:id(\\d+)/transition', requireAuth, (req, res) => {
     } else if (action === 'approve') {
       const signature = (req.body.signature_text || '').trim();
       if (!signature) throw new Error('Signature is required to approve');
-      const approverName = req.session.user.username;
+      const approver = db.prepare('SELECT username, full_name, position FROM users WHERE id = ?').get(req.session.user.id);
+      const approverName = approver?.full_name ? `${approver.full_name}${approver.position ? ` (${approver.position})` : ''}` : req.session.user.username;
       db.prepare(
         `UPDATE permits
          SET status = 'approved', approved_by = ?, approved_at = datetime('now'), approver_name = ?, signature_text = ?, is_locked = 1,
@@ -1101,24 +1164,18 @@ app.post('/permits/:id(\\d+)/delete', requireAuth, (req, res) => {
   const permit = getPermitById(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
-  const attachmentRows = db.prepare('SELECT * FROM permit_attachments WHERE permit_id = ?').all(permit.id);
-  for (const a of attachmentRows) {
-    const fullPath = path.join(uploadsDir, a.stored_name);
-    try {
-      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-    } catch (_err) {
-      // Ignore filesystem delete errors so DB cleanup can continue.
-    }
-  }
-
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM permit_attachments WHERE permit_id = ?').run(permit.id);
-    db.prepare('DELETE FROM permit_audit WHERE permit_id = ?').run(permit.id);
-    db.prepare('DELETE FROM permits WHERE id = ?').run(permit.id);
-  });
-
-  tx();
+  db.prepare(`UPDATE permits SET deleted_at = datetime('now'), updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(req.session.user.id, permit.id);
+  logAudit(permit.id, 'archive', pickSnapshot(permit), { ...pickSnapshot(permit), deleted_at: 'now' }, req.session.user.id);
   res.redirect('/permits');
+});
+
+app.post('/permits/:id(\\d+)/restore', requireAuth, (req, res) => {
+  if (!canDeletePermit(req.session.user)) return res.status(403).send('Forbidden');
+  const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
+  if (!permit) return res.status(404).send('Permit not found');
+
+  db.prepare(`UPDATE permits SET deleted_at = NULL, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(req.session.user.id, req.params.id);
+  res.redirect('/permits?includeArchived=1');
 });
 
 app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
@@ -1236,9 +1293,9 @@ app.get('/permits/:id(\\d+)/export.pdf', requireAuth, (req, res) => {
 });
 
 app.get('/permits/export.csv', requireAuth, (req, res) => {
-  const { where, params } = getFilterContext(req.query);
+  const { where, params, filters } = getFilterContext(req.query);
   const rows = db
-    .prepare(`SELECT p.id,p.title,p.description,p.site,p.status,p.permit_type,p.parent_permit_id,p.required_permits_json,p.permit_date,p.revision,p.is_locked,p.approver_name,p.approved_at,p.created_at,p.updated_at FROM permits p JOIN users c ON c.id = p.created_by ${where} ORDER BY p.updated_at DESC`)
+    .prepare(`SELECT p.id,p.title,p.description,p.site,p.status,p.permit_type,p.parent_permit_id,p.required_permits_json,p.permit_date,p.revision,p.is_locked,p.approver_name,p.approved_at,p.created_at,p.updated_at FROM permits p JOIN users c ON c.id = p.created_by WHERE ${filters.includeArchived ? '1=1' : 'p.deleted_at IS NULL'} ${where ? `AND ${where.replace(/^WHERE\s+/i, '')}` : ''} ORDER BY p.updated_at DESC`)
     .all(...params);
 
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;

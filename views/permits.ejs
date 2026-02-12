@@ -25,6 +25,7 @@
 
     <section class="stats-grid">
       <article class="stat-card"><h3>Total permits</h3><p class="stat-value"><%= stats.total %></p></article>
+      <article class="stat-card"><h3>Pending my action</h3><p class="stat-value"><%= stats.pendingMine %></p></article>
       <% Object.entries(stats.statusCounts).forEach(([status, count]) => { %>
         <article class="stat-card"><h3><%= status.charAt(0).toUpperCase() + status.slice(1) %></h3><p class="stat-value"><%= count %></p></article>
       <% }) %>
@@ -91,7 +92,7 @@
                 </td>
                 <td><strong><%= p.permit_number || p.title %></strong></td>
                 <td><%= p.permit_date %></td>
-                <td><%= p.updated_by_name %></td>
+                <td><%= p.submitted_by_display || p.created_by_name %></td>
                 <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
               </tr>
 
@@ -100,7 +101,7 @@
                   <td class="id-col child-id-col">↳ <%= c.id %></td>
                   <td><strong><%= c.permit_number || c.title %></strong></td>
                   <td><%= c.permit_date %></td>
-                  <td><%= c.updated_by_name %></td>
+                  <td><%= c.submitted_by_display || c.created_by_name %></td>
                   <td><span class="status-pill status-<%= c.status %>"><%= c.status %></span></td>
                 </tr>
               <% }) %>

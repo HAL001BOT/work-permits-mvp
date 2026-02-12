@@ -26,6 +26,7 @@
         try { return JSON.parse(permit.required_permits_json || '[]'); } catch { return []; }
       })();
       const fieldValues = permitFieldValues || {};
+      const fieldErrs = fieldErrors || {};
     %>
 
     <form method="post" action="<%= action %>" class="card form-stack">
@@ -39,36 +40,40 @@
              return acc;
            }, {});
         %>
-        <% Object.entries(grouped).forEach(([sectionName, fields]) => { %>
+        <% Object.entries(grouped).forEach(([sectionName, fields]) => {
+             const sectionLocked = (sectionName === 'Section 5 – Approval & Closeout' && user?.role === 'requester');
+          %>
           <fieldset>
             <legend><%= sectionName %></legend>
+            <% if (sectionLocked) { %><p class="muted">Only supervisor/admin can edit this section.</p><% } %>
             <div class="form-stack">
               <% fields.forEach(f => { %>
                 <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
                   <label>
                     <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                     <% if (f.type === 'textarea') { %>
-                      <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %>><%= fieldValues[f.key] || '' %></textarea>
+                      <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> <%= sectionLocked ? 'disabled' : '' %>><%= fieldValues[f.key] || '' %></textarea>
                     <% } else if (f.type === 'checkbox') { %>
                       <span class="check-option" style="margin-top:6px;">
-                        <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
+                        <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
                         <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
                         <span><%= f.label %></span>
                         <% if (f.key === 'haz_mobile_equipment') { %>
-                          <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" />
+                          <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
                         <% } %>
                         <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
                       </span>
                     <% } else if (f.type === 'select') { %>
-                      <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> >
+                      <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> <%= sectionLocked ? 'disabled' : '' %> >
                         <option value="">Select...</option>
                         <% (f.options || []).forEach(opt => { %>
                           <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
                         <% }) %>
                       </select>
                     <% } else { %>
-                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> />
+                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> <%= sectionLocked ? 'disabled' : '' %> />
                     <% } %>
+                    <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
                   </label>
                 <% } %>
 
@@ -86,6 +91,8 @@
                 <% } %>
               <% }) %>
 
+              <% if (sectionName === 'Section 3 – Hazard Evaluation' && fieldErrs.hazards_group) { %><small class="error"><%= fieldErrs.hazards_group %></small><% } %>
+
               <% if (sectionName === 'Section 1 – Additional Work Permits' && currentType === 'general_work_safe') { %>
                 <label class="muted">Check all additional permits required for this job.</label>
                 <% supplementalPermitTypes.forEach(type => { %>
@@ -98,6 +105,7 @@
                   <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> required />
                   <span>I confirm no other permits are needed</span>
                 </label>
+                <% if (fieldErrs.confirm_no_other_permits) { %><small class="error"><%= fieldErrs.confirm_no_other_permits %></small><% } %>
               <% } %>
             </div>
           </fieldset>
@@ -114,16 +122,48 @@
     (function () {
       const mobileHazard = document.getElementById('pf__haz_mobile_equipment');
       const initials = document.getElementById('pf__mobile_equipment_cert_initials');
-      if (!mobileHazard || !initials) return;
-
-      function syncInitialsVisibility() {
-        const show = mobileHazard.checked;
-        initials.style.display = show ? 'inline-block' : 'none';
-        if (!show) initials.value = '';
+      if (mobileHazard && initials) {
+        function syncInitialsVisibility() {
+          const show = mobileHazard.checked;
+          initials.style.display = show ? 'inline-block' : 'none';
+          if (!show) initials.value = '';
+        }
+        mobileHazard.addEventListener('change', syncInitialsVisibility);
+        syncInitialsVisibility();
       }
 
-      mobileHazard.addEventListener('change', syncInitialsVisibility);
-      syncInitialsVisibility();
+      const form = document.querySelector('form.form-stack');
+      const permitId = '<%= permit?.id || '' %>';
+      if (!form || !permitId) return;
+
+      let dirty = false;
+      let autosaveTimer = null;
+      const status = document.createElement('small');
+      status.className = 'muted';
+      status.style.marginTop = '6px';
+      form.appendChild(status);
+
+      form.addEventListener('input', () => { dirty = true; });
+      form.addEventListener('change', () => { dirty = true; });
+
+      async function autosave() {
+        if (!dirty) return;
+        dirty = false;
+        const data = new URLSearchParams(new FormData(form));
+        try {
+          const res = await fetch(`/permits/${permitId}/autosave`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: data.toString(),
+          });
+          if (res.ok) status.textContent = 'Draft autosaved';
+        } catch (_e) {
+          status.textContent = 'Autosave failed';
+        }
+      }
+
+      autosaveTimer = setInterval(autosave, 20000);
+      window.addEventListener('beforeunload', () => { if (autosaveTimer) clearInterval(autosaveTimer); });
     })();
   </script>
 </body>
