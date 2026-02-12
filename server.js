@@ -729,10 +729,13 @@ function drawFooterCurrentPage(doc, generatedAt, pageNumber) {
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
   const y = pageHeight - 22;
+  const oldY = doc.y;
 
   doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted);
   doc.text(`Generated ${generatedAt}`, 50, y, { width: pageWidth - 100, align: 'left', lineBreak: false });
   doc.text(`Page ${pageNumber}`, 50, y, { width: pageWidth - 100, align: 'right', lineBreak: false });
+
+  doc.y = oldY;
 }
 
 function ensurePdfSpace(doc, needed = 40) {
