@@ -770,7 +770,7 @@ function generatePermitPdf(res, permit) {
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
   doc.text(`Site: ${permit.site || '-'}`);
   doc.text(`Permit End Date: ${permit.permit_date || '-'}`);
-  const createdByDisplay = permit.created_by_full_name ? `${permit.created_by_full_name}${permit.created_by_position ? ` (${permit.created_by_position})` : ''}` : permit.created_by_name;
+  const createdByDisplay = permit.created_by_full_name || permit.created_by_name;
   const updatedByDisplay = permit.updated_by_full_name ? `${permit.updated_by_full_name}${permit.updated_by_position ? ` (${permit.updated_by_position})` : ''}` : permit.updated_by_name;
   doc.text(`Created By: ${createdByDisplay}`);
   doc.text(`Updated By: ${updatedByDisplay}`);
@@ -873,7 +873,7 @@ app.get('/permits', requireAuth, (req, res) => {
       return {
         ...p,
         permit_number: fields.general_permit_no || '',
-        submitted_by_display: p.created_by_full_name ? `${p.created_by_full_name}${p.created_by_position ? ` (${p.created_by_position})` : ''}` : p.created_by_name,
+        submitted_by_display: p.created_by_full_name || p.created_by_name,
         actions: {
           canEdit: canEditFields(req.session.user, p),
           canDelete: canDeletePermit(req.session.user),
