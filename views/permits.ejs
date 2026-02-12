@@ -65,7 +65,7 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Permit Number</th><th>Site</th><th>Status</th><th>Permit Date</th><th>Updated</th><th>By</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Permit Number</th><th>Status</th><th>Permit Date</th><th>By</th></tr></thead>
           <tbody>
             <%
               const childMap = {};
@@ -80,7 +80,7 @@
                  const children = childMap[p.id] || [];
                  const hasChildren = children.length > 0;
             %>
-              <tr>
+              <tr class="click-row" data-href="/permits/<%= p.id %>">
                 <td>
                   <% if (hasChildren) { %>
                     <button type="button" class="button ghost" style="padding:2px 8px;" data-toggle="children-<%= p.id %>" aria-expanded="false">+</button>
@@ -88,47 +88,23 @@
                   <%= p.id %>
                 </td>
                 <td><strong><%= p.permit_number || p.title %></strong></td>
-                <td><%= p.site %></td>
                 <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
                 <td><%= p.permit_date %></td>
-                <td><%= p.updated_at %></td>
                 <td><%= p.updated_by_name %></td>
-                <td>
-                  <div class="row gap wrap">
-                    <a href="/permits/<%= p.id %>">View</a>
-                    <% if (p.actions.canEdit) { %><a href="/permits/<%= p.id %>/edit">Edit</a><% } %>
-                    <% if (Number(p.revision || 0) > 1) { %><a href="/permits/<%= p.id %>/audit">Audit</a><% } %>
-                    <% if (p.actions.canDelete) { %>
-                      <form method="post" action="/permits/<%= p.id %>/delete" onsubmit="return confirm('Delete permit #<%= p.id %>?');"><button type="submit" class="danger-link">Delete</button></form>
-                    <% } %>
-                  </div>
-                </td>
               </tr>
 
               <% children.forEach(c => { %>
-                <tr class="child-row child-of-<%= p.id %>" style="display:none; background:#f8fafc;">
+                <tr class="child-row child-of-<%= p.id %> click-row" data-href="/permits/<%= c.id %>" style="display:none; background:#f8fafc;">
                   <td style="padding-left:34px;">↳ <%= c.id %></td>
                   <td><strong><%= c.permit_number || c.title %></strong></td>
-                  <td><%= c.site %></td>
                   <td><span class="status-pill status-<%= c.status %>"><%= c.status %></span></td>
                   <td><%= c.permit_date %></td>
-                  <td><%= c.updated_at %></td>
                   <td><%= c.updated_by_name %></td>
-                  <td>
-                    <div class="row gap wrap">
-                      <a href="/permits/<%= c.id %>">View</a>
-                      <% if (c.actions.canEdit) { %><a href="/permits/<%= c.id %>/edit">Edit</a><% } %>
-                      <% if (Number(c.revision || 0) > 1) { %><a href="/permits/<%= c.id %>/audit">Audit</a><% } %>
-                      <% if (c.actions.canDelete) { %>
-                        <form method="post" action="/permits/<%= c.id %>/delete" onsubmit="return confirm('Delete permit #<%= c.id %>?');"><button type="submit" class="danger-link">Delete</button></form>
-                      <% } %>
-                    </div>
-                  </td>
                 </tr>
               <% }) %>
             <% }) %>
 
-            <% if (!parents.length) { %><tr><td colspan="8" class="muted">No permits found.</td></tr><% } %>
+            <% if (!parents.length) { %><tr><td colspan="5" class="muted">No permits found.</td></tr><% } %>
           </tbody>
         </table>
       </div>
@@ -137,13 +113,22 @@
 
   <script>
     document.querySelectorAll('[data-toggle]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const key = btn.getAttribute('data-toggle').replace('children-', '');
         const rows = document.querySelectorAll('.child-of-' + key);
         const expanded = btn.getAttribute('aria-expanded') === 'true';
         rows.forEach(r => r.style.display = expanded ? 'none' : 'table-row');
         btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
         btn.textContent = expanded ? '+' : '−';
+      });
+    });
+
+    document.querySelectorAll('tr.click-row').forEach((row) => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        const href = row.getAttribute('data-href');
+        if (href) window.location.href = href;
       });
     });
   </script>
