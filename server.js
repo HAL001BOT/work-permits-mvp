@@ -764,9 +764,8 @@ function generatePermitPdf(res, permit) {
   const blockY = doc.y;
   doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
 
-  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text('General safe work permit', 64, blockY + 14, { width: 465 });
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 44, { width: 465 });
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', 64, blockY + 62, { width: 465 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 34, { width: 465 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', 64, blockY + 52, { width: 465 });
   doc.y = blockY + 104;
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
   doc.text(`Site: ${permit.site || '-'}`);
