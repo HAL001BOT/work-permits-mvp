@@ -30,15 +30,19 @@
 
     <form method="post" action="<%= action %>" class="card form-stack">
       <label>Title
-        <input name="title" required value="<%= permit?.title || '' %>" />
+        <input name="title" value="<%= permit?.title || '' %>" readonly />
       </label>
       <label>Description
         <textarea name="description" rows="6"><%= permit?.description || '' %></textarea>
       </label>
       <label>Site
-        <input name="site" required value="<%= permit?.site || '' %>" />
+        <% if (currentType === 'general_work_safe') { %>
+          <input name="site" value="Cleburne" readonly />
+        <% } else { %>
+          <input name="site" value="<%= permit?.site || '' %>" />
+        <% } %>
       </label>
-      <label>Permit Date
+      <label>Permit End Date
         <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
       </label>
 
@@ -48,8 +52,8 @@
 
       <% if (currentType === 'general_work_safe') { %>
         <fieldset>
-          <legend>Required supplemental permits</legend>
-          <p class="muted">Select all permits that must be completed before this General Work Safe permit can be approved.</p>
+          <legend>Section 1 – Additional Work Permits</legend>
+          <p class="muted">Check all additional permits required for this job.</p>
           <div class="form-stack">
             <% supplementalPermitTypes.forEach(type => { %>
               <label class="row gap" style="align-items:center;">
@@ -80,11 +84,19 @@
                     <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
                   <% } else if (f.type === 'checkbox') { %>
                     <span class="row gap" style="align-items:center; margin-top:6px;">
-                      <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= Number(fieldValues[f.key]) ? 'checked' : '' %> />
-                      <span class="muted">Yes</span>
+                      <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
+                      <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
+                      <span class="muted"><%= f.forcedTrue ? 'Required' : 'Yes' %></span>
                     </span>
+                  <% } else if (f.type === 'select') { %>
+                    <select name="pf__<%= f.key %>">
+                      <option value="">Select...</option>
+                      <% (f.options || []).forEach(opt => { %>
+                        <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
+                      <% }) %>
+                    </select>
                   <% } else { %>
-                    <input type="<%= f.type === 'date' ? 'date' : 'text' %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" />
+                    <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" />
                   <% } %>
                 </label>
               <% }) %>

@@ -67,12 +67,11 @@ const TEMPLATE_TEXT_BY_TYPE = {
 const PERMIT_FIELD_SCHEMAS = {
   [PERMIT_TYPES.GENERAL_WORK_SAFE]: [
     { key: 'general_permit_no', label: 'General Work Permit Number', type: 'text', section: 'General Information' },
-    { key: 'start_time', label: 'Start Time', type: 'text', section: 'General Information' },
-    { key: 'end_date', label: 'Permit End Date (max 7 days)', type: 'date', section: 'General Information' },
+    { key: 'start_time', label: 'Start Time', type: 'time', section: 'General Information' },
     { key: 'start_date', label: 'Start Date', type: 'date', section: 'General Information' },
-    { key: 'building_location', label: 'Building / Location', type: 'text', section: 'General Information' },
+    { key: 'building_location', label: 'Building / Location', type: 'select', options: ['Manufacturing building', 'Production building', 'Tanks'], section: 'General Information' },
     { key: 'contractor_company', label: 'Contractor Company', type: 'text', section: 'General Information' },
-    { key: 'shift', label: 'Shift (A/B/C/D)', type: 'text', section: 'General Information' },
+    { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C'], section: 'General Information' },
     { key: 'equipment', label: 'Equipment Being Worked On', type: 'text', section: 'General Information' },
     { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text', section: 'General Information' },
     { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'text', section: 'General Information' },
@@ -82,20 +81,24 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'other_permits_needed', label: 'Other permits needed', type: 'textarea', section: 'Section 1 – Additional Work Permits' },
     { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', section: 'Section 1 – Additional Work Permits' },
 
-    { key: 'scope_of_work', label: '2a. Describe the work to be completed', type: 'textarea', section: 'Section 2 – Work Description' },
-    { key: 'ppe_face_shield', label: 'PPE: Face shield', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_welding_face_shield', label: 'PPE: Welding Face shield', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_full_face_respirator', label: 'PPE: Full Face Respirator', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_safety_leather_gloves', label: 'PPE: Safety/Leather Gloves', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_ear_plugs', label: 'PPE: Ear Plugs', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_chemical_rubber_boots', label: 'PPE: Chemical rubber boots', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_fire_retardant_attire', label: 'PPE: Fire Retardant Attire', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_chemical_frock', label: 'PPE: Chemical Frock', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_safety_harness', label: 'PPE: Safety Harness', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_chemical_gloves', label: 'PPE: Chemical Gloves', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_chemical_apron', label: 'PPE: Chemical Apron', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_dust_mask', label: 'PPE: Dust Mask', type: 'checkbox', section: 'Section 2 – Work Description' },
-    { key: 'ppe_other_text', label: 'PPE: Others', type: 'text', section: 'Section 2 – Work Description' },
+    { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', section: 'Section 2a – Work Description' },
+    { key: 'face_shield', label: 'Face shield', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'welding_face_shield', label: 'Welding Face shield', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'full_face_respirator', label: 'Full Face Respirator', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'safety_leather_gloves', label: 'Safety/Leather Gloves', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'ear_plugs', label: 'Ear Plugs', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'chemical_rubber_boots', label: 'Chemical rubber boots', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'fire_retardant_attire', label: 'Fire Retardant Attire', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'chemical_frock', label: 'Chemical Frock', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'safety_harness', label: 'Safety Harness', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'chemical_gloves', label: 'Chemical Gloves', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'chemical_apron', label: 'Chemical Apron', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'dust_mask', label: 'Dust Mask', type: 'checkbox', section: 'Section 2b – PPE Required' },
+    { key: 'hard_hat', label: 'Hard Hat', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'full_sleeve_shirt', label: 'Full Sleeve Shirt', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'steel_toe_shoes', label: 'Steel Toe Shoes', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'safety_glasses', label: 'Safety Glasses', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'other_text', label: 'Others', type: 'text', section: 'Section 2b – PPE Required' },
 
     { key: 'hazards_other', label: 'List all other hazards', type: 'textarea', section: 'Section 3 – Hazard Evaluation' },
     { key: 'hazard_controls', label: '3a. Steps taken to mitigate hazards', type: 'textarea', section: 'Section 3 – Hazard Evaluation' },
@@ -243,6 +246,22 @@ function templateTextForType(type) {
   return TEMPLATE_TEXT_BY_TYPE[type] || '';
 }
 
+function generateNextGswpTitle() {
+  const rows = db
+    .prepare(`SELECT title FROM permits WHERE permit_type = ? AND title LIKE 'SACHEM-GSWP-%'`)
+    .all(PERMIT_TYPES.GENERAL_WORK_SAFE);
+
+  let maxNum = -1;
+  for (const row of rows) {
+    const m = String(row.title || '').match(/^SACHEM-GSWP-(\d{5})$/);
+    if (!m) continue;
+    const n = Number(m[1]);
+    if (Number.isInteger(n) && n > maxNum) maxNum = n;
+  }
+  const next = maxNum + 1;
+  return `SACHEM-GSWP-${String(next).padStart(5, '0')}`;
+}
+
 function fieldSchemaForType(type) {
   return PERMIT_FIELD_SCHEMAS[type] || [];
 }
@@ -262,7 +281,7 @@ function extractPermitFieldsFromBody(body, permitType) {
   const fields = {};
   for (const f of schema) {
     const key = `pf__${f.key}`;
-    if (f.type === 'checkbox') fields[f.key] = body[key] ? 1 : 0;
+    if (f.type === 'checkbox') fields[f.key] = f.forcedTrue ? 1 : (body[key] ? 1 : 0);
     else fields[f.key] = String(body[key] || '').trim();
   }
   return fields;
@@ -626,7 +645,7 @@ app.get('/permits', requireAuth, (req, res) => {
 app.get('/permits/new', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   res.render('permit-form', {
-    permit: null,
+    permit: { title: generateNextGswpTitle(), site: 'Cleburne', permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE },
     action: '/permits',
     error: null,
     permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
@@ -638,15 +657,32 @@ app.get('/permits/new', requireAuth, (req, res) => {
 
 app.post('/permits', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
-  const { title, description = '', site, permit_date } = req.body;
+  const { description = '', permit_date } = req.body;
+  const title = generateNextGswpTitle();
+  const site = 'Cleburne';
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
   const permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
+  permitFields.general_permit_no = title;
   const finalDescription = (description || '').trim() || templateTextForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
-  if (!title || !site || !permit_date) {
+  const startDate = permitFields.start_date || '';
+
+  if (!permit_date) {
     return res.status(400).render('permit-form', {
       permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
       action: '/permits',
-      error: 'Title, site, and permit date are required.',
+      error: 'Permit end date is required.',
+      supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+      permitTypeLabels: PERMIT_TYPE_LABELS,
+      permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
+      permitFieldValues: permitFields,
+    });
+  }
+
+  if (startDate && startDate > permit_date) {
+    return res.status(400).render('permit-form', {
+      permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
+      action: '/permits',
+      error: 'Start date must be before or equal to permit end date.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
@@ -698,16 +734,32 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   if (!permit) return res.status(404).send('Permit not found');
   if (!canEditFields(req.session.user, permit)) return res.status(403).send('Forbidden');
 
-  const { title, description = '', site, permit_date } = req.body;
-  const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
+  const { description = '', permit_date } = req.body;
   const permitType = permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE;
+  const title = permit.title;
+  const site = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'Cleburne' : (req.body.site || permit.site);
+  const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
   const permitFields = extractPermitFieldsFromBody(req.body, permitType);
+  if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE) permitFields.general_permit_no = title;
 
-  if (!title || !site || !permit_date) {
+  if (!permit_date) {
     return res.status(400).render('permit-form', {
       permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
       action: `/permits/${req.params.id}`,
-      error: 'Title, site, and permit date are required.',
+      error: 'Permit end date is required.',
+      supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+      permitTypeLabels: PERMIT_TYPE_LABELS,
+      permitFieldSchema: fieldSchemaForType(permitType),
+      permitFieldValues: permitFields,
+    });
+  }
+
+  const startDate = permitFields.start_date || '';
+  if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE && startDate && startDate > permit_date) {
+    return res.status(400).render('permit-form', {
+      permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
+      action: `/permits/${req.params.id}`,
+      error: 'Start date must be before or equal to permit end date.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(permitType),
