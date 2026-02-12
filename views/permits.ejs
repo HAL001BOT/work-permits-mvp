@@ -41,7 +41,14 @@
             <% }) %>
           </select>
         </label>
-        <label>Creator<input name="creator" value="<%= filters.creator %>" /></label>
+        <label>Submitted By
+          <select name="submittedBy">
+            <option value="">All</option>
+            <% submitters.forEach(u => { %>
+              <option value="<%= u.id %>" <%= String(filters.submittedBy || '') === String(u.id) ? 'selected' : '' %>><%= u.username %></option>
+            <% }) %>
+          </select>
+        </label>
         <label>From<input type="date" name="startDate" value="<%= filters.startDate %>" /></label>
         <label>To<input type="date" name="endDate" value="<%= filters.endDate %>" /></label>
         <div class="row gap wrap"><button type="submit" class="button primary">Apply</button><a class="button ghost" href="/permits">Clear</a></div>
@@ -51,7 +58,7 @@
     <section class="card">
       <div class="row gap wrap">
         <% if (permissions.canCreate) { %><a class="button primary" href="/permits/new">New Permit</a><% } %>
-        <a class="button" href="/permits/export.csv?status=<%= encodeURIComponent(filters.status) %>&creator=<%= encodeURIComponent(filters.creator) %>&startDate=<%= encodeURIComponent(filters.startDate) %>&endDate=<%= encodeURIComponent(filters.endDate) %>">Export CSV</a>
+        <a class="button" href="/permits/export.csv?status=<%= encodeURIComponent(filters.status) %>&submittedBy=<%= encodeURIComponent(filters.submittedBy) %>&startDate=<%= encodeURIComponent(filters.startDate) %>&endDate=<%= encodeURIComponent(filters.endDate) %>">Export CSV</a>
       </div>
     </section>
 

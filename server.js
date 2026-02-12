@@ -422,7 +422,7 @@ function statusOptions() {
 }
 
 function getFilterContext(query) {
-  const { status = '', creator = '', startDate = '', endDate = '' } = query;
+  const { status = '', submittedBy = '', startDate = '', endDate = '' } = query;
   const clauses = [];
   const params = [];
 
@@ -430,9 +430,9 @@ function getFilterContext(query) {
     clauses.push('p.status = ?');
     params.push(status);
   }
-  if (creator) {
-    clauses.push('c.username LIKE ?');
-    params.push(`%${creator}%`);
+  if (submittedBy) {
+    clauses.push('p.created_by = ?');
+    params.push(submittedBy);
   }
   if (startDate) {
     clauses.push('p.permit_date >= ?');
@@ -444,7 +444,7 @@ function getFilterContext(query) {
   }
 
   return {
-    filters: { status, creator, startDate, endDate },
+    filters: { status, submittedBy, startDate, endDate },
     where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
     params,
   };
@@ -818,10 +818,12 @@ app.get('/permits', requireAuth, (req, res) => {
     });
 
   const statusCounts = statusOptions().reduce((acc, status) => ({ ...acc, [status]: permits.filter((p) => p.status === status).length }), {});
+  const submitters = db.prepare('SELECT id, username FROM users ORDER BY username ASC').all();
 
   res.render('permits', {
     permits,
     filters,
+    submitters,
     statusOptions: statusOptions(),
     permissions: {
       canCreate: canCreatePermit(req.session.user),
