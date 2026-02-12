@@ -666,13 +666,12 @@ function drawHeader(doc, subtitle) {
 
   const logoPath = resolveLogoPath();
   if (logoPath) {
-    try { doc.image(logoPath, 50, startY, { fit: [54, 54] }); } catch (_err) { }
+    try { doc.image(logoPath, 50, startY - 2, { fit: [68, 68] }); } catch (_err) { }
   }
 
-  const textX = 120;
-  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(20).text('Sachem Work Permits', textX, startY + 2);
-  doc.fillColor('#0f172a').font('Helvetica-Bold').fontSize(14).text(subtitle, textX, startY + 30);
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', textX, startY + 50);
+  const textX = 132;
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(20).text(subtitle, textX, startY + 2);
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', textX, startY + 34);
   doc.y = 145;
 }
 
@@ -723,14 +722,15 @@ function generatePermitPdf(res, permit) {
   res.setHeader('Content-Disposition', `attachment; filename="permit-${permit.id}.pdf"`);
   doc.pipe(res);
 
-  drawHeader(doc, `Permit #${permit.id}`);
-  doc.roundedRect(50, doc.y, 495, 64, 8).fillAndStroke('#ffffff', BRAND.border);
+  drawHeader(doc, `permit-${permit.id}.pdf`);
+  const blockY = doc.y;
+  doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
   const permitFields = parsePermitFieldsJson(permit.permit_fields_json);
   const permitNo = permitFields.general_permit_no || `Permit-${permit.id}`;
 
-  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, doc.y + 10, { width: 465 });
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Permit No: ${permitNo} • Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, doc.y + 36);
-  doc.y += 80;
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, blockY + 14, { width: 465 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Permit No: ${permitNo} • Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 46, { width: 465 });
+  doc.y = blockY + 104;
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
   doc.text(`Site: ${permit.site || '-'}`);
   doc.text(`Permit End Date: ${permit.permit_date || '-'}`);
