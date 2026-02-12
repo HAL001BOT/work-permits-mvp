@@ -1161,7 +1161,13 @@ app.post('/permits/:id(\\d+)/attachments/:attachmentId(\\d+)/delete', requireAut
 });
 
 app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
-  const permit = db.prepare('SELECT id FROM permits WHERE id = ?').get(req.params.id);
+  const permit = db.prepare('SELECT id, revision FROM permits WHERE id = ?').get(req.params.id);
+  if (!permit) return res.status(404).send('Permit not found');
+
+  if (Number(permit.revision || 0) <= 1) {
+    return res.render('audit', { permitId: req.params.id, auditRows: [] });
+  }
+
   const auditRows = db
     .prepare(`SELECT a.*, u.username FROM permit_audit a JOIN users u ON u.id = a.changed_by WHERE a.permit_id = ? ORDER BY a.changed_at DESC`)
     .all(req.params.id)
@@ -1174,7 +1180,6 @@ app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
       newRaw: row.new_values,
     }));
 
-  if (!permit && auditRows.length === 0) return res.status(404).send('Permit not found');
   res.render('audit', { permitId: req.params.id, auditRows });
 });
 
