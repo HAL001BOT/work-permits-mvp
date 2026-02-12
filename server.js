@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
@@ -83,58 +84,158 @@ function formatStatusLabel(status) {
   return status[0].toUpperCase() + status.slice(1);
 }
 
+const BRAND = {
+  primary: '#0f766e',
+  primaryDark: '#115e59',
+  accent: '#14b8a6',
+  ink: '#0f172a',
+  muted: '#475569',
+  border: '#cbd5e1',
+  bgSoft: '#f0fdfa',
+};
+
+const LOGO_CANDIDATES = [
+  path.join(__dirname, 'public', 'img', 'sachem.gif'),
+  path.join(__dirname, 'public', 'img', 'sachem.png'),
+];
+
+function resolveLogoPath() {
+  for (const logoPath of LOGO_CANDIDATES) {
+    if (fs.existsSync(logoPath)) return logoPath;
+  }
+  return null;
+}
+
+function formatDate(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
+}
+
+function drawFooter(doc, generatedAt) {
+  const range = doc.bufferedPageRange();
+  for (let i = 0; i < range.count; i += 1) {
+    doc.switchToPage(range.start + i);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+
+    doc
+      .font('Helvetica')
+      .fontSize(8)
+      .fillColor(BRAND.muted)
+      .text(`Generated ${generatedAt}`, 50, pageHeight - 32, {
+        width: pageWidth - 100,
+        align: 'left',
+      })
+      .text(`Page ${i + 1} of ${range.count}`, 50, pageHeight - 32, {
+        width: pageWidth - 100,
+        align: 'right',
+      });
+  }
+}
+
+function drawHeader(doc, subtitle) {
+  const startY = 44;
+  doc.save();
+  doc.rect(0, 0, doc.page.width, 125).fill(BRAND.bgSoft);
+  doc.rect(0, 118, doc.page.width, 7).fill(BRAND.primary);
+  doc.restore();
+
+  const logoPath = resolveLogoPath();
+  if (logoPath) {
+    try {
+      doc.image(logoPath, 50, startY, { fit: [54, 54], align: 'left', valign: 'top' });
+    } catch (_err) {
+      // GIF support can vary by environment; continue without logo if unsupported.
+    }
+  }
+
+  const textX = 120;
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(20).text('Sachem Work Permits', textX, startY + 2);
+  doc.fillColor(BRAND.ink).font('Helvetica-Bold').fontSize(14).text(subtitle, textX, startY + 30);
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', textX, startY + 50);
+
+  doc.y = 145;
+}
+
+function drawSectionCard(doc, label, value, x, y, w) {
+  const h = 54;
+  doc.roundedRect(x, y, w, h, 6).fillAndStroke('#ffffff', BRAND.border);
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(BRAND.muted).text(label.toUpperCase(), x + 10, y + 10, { width: w - 20 });
+  doc.font('Helvetica').fontSize(11).fillColor(BRAND.ink).text(value || '-', x + 10, y + 24, { width: w - 20 });
+}
+
 function generatePermitPdf(res, permit) {
-  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
   const safeTitle = `permit-${permit.id}.pdf`;
+  const generatedAt = new Date().toLocaleString();
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}"`);
   doc.pipe(res);
 
-  doc.fontSize(20).text('Work Permit', { align: 'left' });
-  doc.moveDown(0.5);
-  doc.fontSize(12).fillColor('#4b5563').text(`Generated: ${new Date().toLocaleString()}`);
+  drawHeader(doc, `Permit #${permit.id}`);
 
-  doc.moveDown();
-  doc.fillColor('black').fontSize(14).text(`Permit #${permit.id}: ${permit.title}`);
-  doc.moveDown(0.7);
+  doc.roundedRect(50, doc.y, 495, 64, 8).fillAndStroke('#ffffff', BRAND.border);
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, doc.y + 14, {
+    width: 465,
+  });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Permit Date: ${permit.permit_date || '-'}`, 64, doc.y + 40);
 
-  const fields = [
-    ['Site', permit.site],
-    ['Status', formatStatusLabel(permit.status)],
-    ['Permit Date', permit.permit_date],
-    ['Created At', permit.created_at],
-    ['Updated At', permit.updated_at],
-    ['Created By', permit.created_by_name],
-    ['Updated By', permit.updated_by_name],
-  ];
+  doc.y += 82;
 
-  fields.forEach(([label, value]) => {
-    doc.font('Helvetica-Bold').text(`${label}: `, { continued: true });
-    doc.font('Helvetica').text(value || '-');
+  const cardWidth = 154;
+  const gap = 16;
+  const x0 = 50;
+  let y = doc.y;
+  drawSectionCard(doc, 'Site', permit.site, x0, y, cardWidth);
+  drawSectionCard(doc, 'Created By', permit.created_by_name, x0 + cardWidth + gap, y, cardWidth);
+  drawSectionCard(doc, 'Updated By', permit.updated_by_name, x0 + (cardWidth + gap) * 2, y, cardWidth);
+
+  y += 68;
+  drawSectionCard(doc, 'Created At', formatDate(permit.created_at), x0, y, 239);
+  drawSectionCard(doc, 'Updated At', formatDate(permit.updated_at), x0 + 255, y, 239);
+
+  doc.y = y + 74;
+
+  doc.roundedRect(50, doc.y, 495, 250, 8).fillAndStroke('#ffffff', BRAND.border);
+  doc.rect(50, doc.y, 495, 30).fill(BRAND.primary);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(12).text('Description', 64, doc.y + 9);
+  doc.fillColor(BRAND.ink).font('Helvetica').fontSize(11).text(permit.description || 'No description provided.', 64, doc.y + 42, {
+    width: 467,
+    height: 200,
+    lineGap: 4,
+    ellipsis: true,
   });
 
-  doc.moveDown();
-  doc.font('Helvetica-Bold').text('Description');
-  doc.font('Helvetica').text(permit.description || 'No description provided.', {
-    lineGap: 3,
-  });
-
+  drawFooter(doc, generatedAt);
   doc.end();
 }
 
+function drawTableHeader(doc, y) {
+  doc.rect(50, y, 495, 24).fill(BRAND.primary);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9);
+  doc.text('ID', 58, y + 7, { width: 34 });
+  doc.text('Title', 95, y + 7, { width: 190 });
+  doc.text('Site', 289, y + 7, { width: 90 });
+  doc.text('Status', 380, y + 7, { width: 66 });
+  doc.text('Permit Date', 448, y + 7, { width: 95 });
+}
+
 function generatePermitListPdf(res, permits, filters) {
-  const doc = new PDFDocument({ margin: 45, size: 'A4' });
+  const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
   const filename = 'permits-summary.pdf';
+  const generatedAt = new Date().toLocaleString();
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   doc.pipe(res);
 
-  doc.fontSize(20).text('Work Permits Summary');
-  doc.moveDown(0.5);
-  doc.fontSize(11).fillColor('#4b5563').text(`Generated: ${new Date().toLocaleString()}`);
-  doc.fillColor('black');
+  drawHeader(doc, 'Permit Summary Report');
+
+  doc.roundedRect(50, doc.y, 495, 76, 8).fillAndStroke('#ffffff', BRAND.border);
+  doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(12).text(`Total permits: ${permits.length}`, 64, doc.y + 12);
 
   const activeFilterLines = [
     filters.status ? `Status: ${filters.status}` : null,
@@ -143,38 +244,47 @@ function generatePermitListPdf(res, permits, filters) {
     filters.endDate ? `To: ${filters.endDate}` : null,
   ].filter(Boolean);
 
-  doc.moveDown(0.7);
-  doc.font('Helvetica-Bold').text('Filters');
-  doc.font('Helvetica').text(activeFilterLines.length ? activeFilterLines.join(' | ') : 'None');
+  doc.fillColor(BRAND.muted).font('Helvetica-Bold').fontSize(9).text('Applied filters', 64, doc.y + 34);
+  doc.font('Helvetica').fontSize(9).fillColor(BRAND.ink).text(activeFilterLines.length ? activeFilterLines.join(' | ') : 'None', 64, doc.y + 48, { width: 465 });
 
-  doc.moveDown(0.5);
-  doc.font('Helvetica-Bold').text(`Total permits: ${permits.length}`);
-  doc.moveDown();
+  doc.y += 92;
 
   if (!permits.length) {
-    doc.font('Helvetica').text('No permits matched the selected filters.');
+    doc.roundedRect(50, doc.y, 495, 64, 8).fillAndStroke('#ffffff', BRAND.border);
+    doc.fillColor(BRAND.ink).font('Helvetica').fontSize(11).text('No permits matched the selected filters.', 64, doc.y + 24);
+    drawFooter(doc, generatedAt);
     doc.end();
     return;
   }
 
+  let y = doc.y;
+  drawTableHeader(doc, y);
+  y += 24;
+
   permits.forEach((permit, idx) => {
-    if (idx > 0) doc.moveDown(0.5);
+    if (y > 740) {
+      doc.addPage();
+      drawHeader(doc, 'Permit Summary Report');
+      y = doc.y;
+      drawTableHeader(doc, y);
+      y += 24;
+    }
 
-    const blockTop = doc.y;
-    doc.rect(45, blockTop - 3, 505, 70).stroke('#e5e7eb');
+    const rowHeight = 28;
+    const isEven = idx % 2 === 0;
+    doc.rect(50, y, 495, rowHeight).fillAndStroke(isEven ? '#ffffff' : '#f8fafc', BRAND.border);
 
-    doc.font('Helvetica-Bold').fontSize(12).text(`#${permit.id} - ${permit.title}`, 52, blockTop + 6);
-    doc.font('Helvetica').fontSize(10).text(
-      `Site: ${permit.site}    Status: ${formatStatusLabel(permit.status)}    Permit Date: ${permit.permit_date}`,
-      52,
-      blockTop + 25
-    );
-    doc.text(`Updated: ${permit.updated_at} by ${permit.updated_by_name}`, 52, blockTop + 40);
+    doc.fillColor(BRAND.ink).font('Helvetica').fontSize(9);
+    doc.text(String(permit.id), 58, y + 9, { width: 34 });
+    doc.text(permit.title || '-', 95, y + 9, { width: 190, ellipsis: true });
+    doc.text(permit.site || '-', 289, y + 9, { width: 90, ellipsis: true });
+    doc.text(formatStatusLabel(permit.status), 380, y + 9, { width: 66 });
+    doc.text(permit.permit_date || '-', 448, y + 9, { width: 95 });
 
-    doc.y = blockTop + 76;
-    if (doc.y > 740) doc.addPage();
+    y += rowHeight;
   });
 
+  drawFooter(doc, generatedAt);
   doc.end();
 }
 
@@ -281,7 +391,7 @@ app.post('/permits', requireAuth, (req, res) => {
   res.redirect('/permits');
 });
 
-app.get('/permits/:id/edit', requireAuth, (req, res) => {
+app.get('/permits/:id(\\d+)/edit', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
@@ -293,7 +403,7 @@ app.get('/permits/:id/edit', requireAuth, (req, res) => {
   });
 });
 
-app.post('/permits/:id', requireAuth, (req, res) => {
+app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
@@ -332,7 +442,7 @@ app.post('/permits/:id', requireAuth, (req, res) => {
   res.redirect('/permits');
 });
 
-app.post('/permits/:id/delete', requireAuth, (req, res) => {
+app.post('/permits/:id(\\d+)/delete', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
@@ -345,7 +455,7 @@ app.post('/permits/:id/delete', requireAuth, (req, res) => {
   res.redirect('/permits');
 });
 
-app.get('/permits/:id', requireAuth, (req, res) => {
+app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
   const permit = db
     .prepare(
       `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
@@ -375,7 +485,7 @@ app.get('/permits/:id', requireAuth, (req, res) => {
   });
 });
 
-app.get('/permits/:id/audit', requireAuth, (req, res) => {
+app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
   const permit = db.prepare('SELECT * FROM permits WHERE id = ?').get(req.params.id);
   const auditRows = db
     .prepare(
@@ -392,7 +502,7 @@ app.get('/permits/:id/audit', requireAuth, (req, res) => {
   res.render('audit', { permitId: req.params.id, auditRows });
 });
 
-app.get('/permits/:id/export.pdf', requireAuth, (req, res) => {
+app.get('/permits/:id(\\d+)/export.pdf', requireAuth, (req, res) => {
   const permit = db
     .prepare(
       `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
