@@ -731,9 +731,11 @@ function drawFooter(doc, generatedAt) {
     doc.switchToPage(range.start + i);
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted)
-      .text(`Generated ${generatedAt}`, 50, pageHeight - 28, { width: pageWidth - 100, align: 'left' })
-      .text(`Page ${i + 1} of ${range.count}`, 50, pageHeight - 28, { width: pageWidth - 100, align: 'right' });
+    const y = pageHeight - 22;
+
+    doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted);
+    doc.text(`Generated ${generatedAt}`, 50, y, { width: pageWidth - 100, align: 'left', lineBreak: false });
+    doc.text(`Page ${i + 1} of ${range.count}`, 50, y, { width: pageWidth - 100, align: 'right', lineBreak: false });
   }
 }
 
