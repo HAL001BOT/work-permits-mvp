@@ -700,10 +700,10 @@ function drawHeader(doc, subtitle) {
 
   const logoPath = resolveLogoPath();
   if (logoPath) {
-    try { doc.image(logoPath, 50, startY - 2, { fit: [68, 68] }); } catch (_err) { }
+    try { doc.image(logoPath, doc.page.width - 120, startY - 2, { fit: [68, 68] }); } catch (_err) { }
   }
 
-  const textX = 132;
+  const textX = 50;
   doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(20).text(subtitle, textX, startY + 2);
   doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', textX, startY + 34);
   doc.y = 145;
