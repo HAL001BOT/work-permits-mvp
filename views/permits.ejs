@@ -64,21 +64,30 @@
     </section>
 
     <section class="table-card card">
+      <div class="row space-between wrap gap" style="padding:12px 14px 0;">
+        <label class="check-option" style="font-size:13px;">
+          <input type="checkbox" id="compact-toggle" />
+          <span>Compact view</span>
+        </label>
+        <form method="get" action="/permits" class="row gap wrap">
+          <input type="hidden" name="status" value="<%= filters.status %>" />
+          <input type="hidden" name="submittedBy" value="<%= filters.submittedBy %>" />
+          <input type="hidden" name="startDate" value="<%= filters.startDate %>" />
+          <input type="hidden" name="endDate" value="<%= filters.endDate %>" />
+          <label>Rows per page
+            <select name="perPage" onchange="this.form.submit()">
+              <% [10,25,50,100].forEach(n => { %><option value="<%= n %>" <%= pagination.perPage === n ? 'selected' : '' %>><%= n %></option><% }) %>
+            </select>
+          </label>
+          <input type="hidden" name="page" value="1" />
+        </form>
+      </div>
       <div class="table-wrap">
-        <table>
+        <table id="permits-table">
           <thead><tr><th class="id-col">ID</th><th>Permit Number</th><th>Permit Date</th><th>By</th><th>Status</th></tr></thead>
           <tbody>
-            <%
-              const childMap = {};
-              permits.filter(p => p.parent_permit_id).forEach(c => {
-                if (!childMap[c.parent_permit_id]) childMap[c.parent_permit_id] = [];
-                childMap[c.parent_permit_id].push(c);
-              });
-              const parents = permits.filter(p => !p.parent_permit_id);
-            %>
-
-            <% parents.forEach(p => {
-                 const children = childMap[p.id] || [];
+            <% permits.forEach(p => {
+                 const children = childrenByParent[p.id] || [];
                  const hasChildren = children.length > 0;
             %>
               <tr class="click-row" data-href="/permits/<%= p.id %>">
@@ -107,9 +116,17 @@
               <% }) %>
             <% }) %>
 
-            <% if (!parents.length) { %><tr><td colspan="5" class="muted">No permits found.</td></tr><% } %>
+            <% if (!permits.length) { %><tr><td colspan="5" class="muted">No permits found.</td></tr><% } %>
           </tbody>
         </table>
+      </div>
+      <div class="row space-between wrap gap" style="padding:12px 14px 14px;">
+        <small class="muted">Page <%= pagination.page %> of <%= pagination.totalPages %> · <%= pagination.total %> parent permits</small>
+        <div class="row gap wrap">
+          <% const qp = `status=${encodeURIComponent(filters.status)}&submittedBy=${encodeURIComponent(filters.submittedBy)}&startDate=${encodeURIComponent(filters.startDate)}&endDate=${encodeURIComponent(filters.endDate)}&perPage=${pagination.perPage}`; %>
+          <% if (pagination.page > 1) { %><a class="button ghost" href="/permits?<%= qp %>&page=<%= pagination.page - 1 %>">Prev</a><% } %>
+          <% if (pagination.page < pagination.totalPages) { %><a class="button ghost" href="/permits?<%= qp %>&page=<%= pagination.page + 1 %>">Next</a><% } %>
+        </div>
       </div>
     </section>
   </main>
@@ -134,6 +151,19 @@
         if (href) window.location.href = href;
       });
     });
+
+    const compactToggle = document.getElementById('compact-toggle');
+    const table = document.getElementById('permits-table');
+    if (compactToggle && table) {
+      const key = 'permits-compact-view';
+      const current = localStorage.getItem(key) === '1';
+      compactToggle.checked = current;
+      if (current) table.classList.add('compact');
+      compactToggle.addEventListener('change', () => {
+        table.classList.toggle('compact', compactToggle.checked);
+        localStorage.setItem(key, compactToggle.checked ? '1' : '0');
+      });
+    }
   </script>
 </body>
 </html>

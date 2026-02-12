@@ -52,10 +52,10 @@
                   <label>
                     <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                     <% if (f.type === 'textarea') { %>
-                      <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> <%= sectionLocked ? 'disabled' : '' %>><%= fieldValues[f.key] || '' %></textarea>
+                      <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %>><%= fieldValues[f.key] || '' %></textarea>
                     <% } else if (f.type === 'checkbox') { %>
                       <span class="check-option" style="margin-top:6px;">
-                        <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
+                        <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
                         <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
                         <span><%= f.label %></span>
                         <% if (f.key === 'haz_mobile_equipment') { %>
@@ -64,14 +64,14 @@
                         <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
                       </span>
                     <% } else if (f.type === 'select') { %>
-                      <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> <%= sectionLocked ? 'disabled' : '' %> >
+                      <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> >
                         <option value="">Select...</option>
                         <% (f.options || []).forEach(opt => { %>
                           <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
                         <% }) %>
                       </select>
                     <% } else { %>
-                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> <%= sectionLocked ? 'disabled' : '' %> />
+                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> />
                     <% } %>
                     <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
                   </label>
@@ -112,6 +112,11 @@
         <% }) %>
       <% } %>
 
+      <div id="required-summary" class="card" style="margin:0;padding:10px 12px;background:#f8fafc;">
+        <strong>Required sections summary:</strong>
+        <small class="muted" id="required-summary-text">Checking required fields...</small>
+      </div>
+
       <div class="row gap wrap">
         <button type="submit" class="button primary">Save Permit</button>
         <a class="button ghost" href="<%= permit ? '/permits/' + permit.id : '/permits' %>">Cancel</a>
@@ -143,8 +148,28 @@
       status.style.marginTop = '6px';
       form.appendChild(status);
 
-      form.addEventListener('input', () => { dirty = true; });
-      form.addEventListener('change', () => { dirty = true; });
+      const summaryText = document.getElementById('required-summary-text');
+      function computeRequiredSummary() {
+        const requiredNodes = Array.from(form.querySelectorAll('[data-required="1"]')).filter((el) => !el.disabled);
+        const missingBySection = new Map();
+        requiredNodes.forEach((el) => {
+          const section = el.getAttribute('data-section') || 'Form';
+          const missing = el.type === 'checkbox' ? !el.checked : !String(el.value || '').trim();
+          if (!missing) return;
+          missingBySection.set(section, (missingBySection.get(section) || 0) + 1);
+        });
+
+        if (!summaryText) return;
+        if (!missingBySection.size) {
+          summaryText.textContent = 'All required sections complete.';
+          return;
+        }
+        const parts = Array.from(missingBySection.entries()).map(([section, count]) => `${section} (${count})`);
+        summaryText.textContent = `Missing required fields in: ${parts.join(', ')}`;
+      }
+
+      form.addEventListener('input', () => { dirty = true; computeRequiredSummary(); });
+      form.addEventListener('change', () => { dirty = true; computeRequiredSummary(); });
 
       async function autosave() {
         if (!dirty) return;
@@ -156,12 +181,17 @@
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: data.toString(),
           });
-          if (res.ok) status.textContent = 'Draft autosaved';
+          if (res.ok) {
+            const payload = await res.json();
+            const at = new Date(payload.savedAt).toLocaleTimeString();
+            status.textContent = payload.changed ? `Draft autosaved at ${at}` : `No changes to save (${at})`;
+          }
         } catch (_e) {
           status.textContent = 'Autosave failed';
         }
       }
 
+      computeRequiredSummary();
       autosaveTimer = setInterval(autosave, 20000);
       window.addEventListener('beforeunload', () => { if (autosaveTimer) clearInterval(autosaveTimer); });
     })();

@@ -16,6 +16,19 @@
     </header>
 
     <section class="card">
+      <form method="get" class="grid-form" style="margin-bottom:12px;">
+        <label>Action
+          <input name="action" value="<%= filters?.action || '' %>" placeholder="e.g. transition_approve" />
+        </label>
+        <label>Actor
+          <select name="actor">
+            <option value="">All</option>
+            <% (actors || []).forEach(a => { %><option value="<%= a %>" <%= (filters?.actor || '') === a ? 'selected' : '' %>><%= a %></option><% }) %>
+          </select>
+        </label>
+        <label class="check-option"><input type="checkbox" name="hideNoDiff" value="1" <%= filters?.hideNoDiff === '1' ? 'checked' : '' %> /><span>Only entries with field changes</span></label>
+        <div class="row gap wrap"><button class="button primary" type="submit">Apply</button><a class="button ghost" href="/permits/<%= permitId %>/audit">Clear</a></div>
+      </form>
       <% if (!auditRows.length) { %>
         <p class="muted">No audit records found.</p>
       <% } %>
