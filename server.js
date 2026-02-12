@@ -1072,11 +1072,20 @@ app.post('/permits/:id(\\d+)/delete', requireAuth, (req, res) => {
   const attachmentRows = db.prepare('SELECT * FROM permit_attachments WHERE permit_id = ?').all(permit.id);
   for (const a of attachmentRows) {
     const fullPath = path.join(uploadsDir, a.stored_name);
-    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    try {
+      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+    } catch (_err) {
+      // Ignore filesystem delete errors so DB cleanup can continue.
+    }
   }
-  db.prepare('DELETE FROM permit_attachments WHERE permit_id = ?').run(permit.id);
-  db.prepare('DELETE FROM permits WHERE id = ?').run(permit.id);
-  logAudit(permit.id, 'delete', pickSnapshot(permit), null, req.session.user.id);
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM permit_attachments WHERE permit_id = ?').run(permit.id);
+    db.prepare('DELETE FROM permit_audit WHERE permit_id = ?').run(permit.id);
+    db.prepare('DELETE FROM permits WHERE id = ?').run(permit.id);
+  });
+
+  tx();
   res.redirect('/permits');
 });
 
@@ -1153,7 +1162,11 @@ app.post('/permits/:id(\\d+)/attachments/:attachmentId(\\d+)/delete', requireAut
 
   db.prepare('DELETE FROM permit_attachments WHERE id = ?').run(row.id);
   const fullPath = path.join(uploadsDir, row.stored_name);
-  if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  try {
+    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  } catch (_err) {
+    // Ignore filesystem delete errors so UI action still succeeds.
+  }
 
   db.prepare(`UPDATE permits SET updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(req.session.user.id, req.params.id);
   logAudit(req.params.id, 'attachment_delete', { original_name: row.original_name, size_bytes: row.size_bytes }, null, req.session.user.id);
