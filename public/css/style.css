@@ -119,6 +119,28 @@ th, td {
 }
 th { background: #f8fafc; font-size: 12px; letter-spacing: .02em; text-transform: uppercase; color: #334155; }
 
+.id-col {
+  width: 88px;
+  white-space: nowrap;
+}
+
+.id-toggle {
+  padding: 2px 8px !important;
+  min-width: 28px;
+  height: 26px;
+  line-height: 1;
+  margin-right: 6px;
+}
+
+.id-toggle-spacer {
+  display: inline-block;
+  width: 34px;
+}
+
+.child-id-col {
+  padding-left: 16px !important;
+}
+
 .status-pill {
   display: inline-block;
   font-size: 12px;
