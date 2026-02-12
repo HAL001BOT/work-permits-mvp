@@ -725,18 +725,14 @@ function resolveLogoPath() {
   return null;
 }
 
-function drawFooter(doc, generatedAt) {
-  const range = doc.bufferedPageRange();
-  for (let i = 0; i < range.count; i += 1) {
-    doc.switchToPage(range.start + i);
-    const pageWidth = doc.page.width;
-    const pageHeight = doc.page.height;
-    const y = pageHeight - 22;
+function drawFooterCurrentPage(doc, generatedAt, pageNumber) {
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+  const y = pageHeight - 22;
 
-    doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted);
-    doc.text(`Generated ${generatedAt}`, 50, y, { width: pageWidth - 100, align: 'left', lineBreak: false });
-    doc.text(`Page ${i + 1} of ${range.count}`, 50, y, { width: pageWidth - 100, align: 'right', lineBreak: false });
-  }
+  doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted);
+  doc.text(`Generated ${generatedAt}`, 50, y, { width: pageWidth - 100, align: 'left', lineBreak: false });
+  doc.text(`Page ${pageNumber}`, 50, y, { width: pageWidth - 100, align: 'right', lineBreak: false });
 }
 
 function ensurePdfSpace(doc, needed = 40) {
@@ -807,7 +803,7 @@ function renderPermitFieldsPdf(doc, permit) {
 }
 
 function generatePermitPdf(res, permit) {
-  const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
   const generatedAt = new Date().toLocaleString();
   const permitFields = parsePermitFieldsJson(permit.permit_fields_json);
   const permitNo = permitFields.general_permit_no || `Permit-${permit.id}`;
@@ -816,6 +812,13 @@ function generatePermitPdf(res, permit) {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${safeFileBase}.pdf"`);
   doc.pipe(res);
+
+  let pageNumber = 1;
+  drawFooterCurrentPage(doc, generatedAt, pageNumber);
+  doc.on('pageAdded', () => {
+    pageNumber += 1;
+    drawFooterCurrentPage(doc, generatedAt, pageNumber);
+  });
 
   drawHeader(doc, 'General safe work permit', permitNo);
   const blockY = doc.y;
@@ -837,7 +840,6 @@ function generatePermitPdf(res, permit) {
 
   renderPermitFieldsPdf(doc, permit);
 
-  drawFooter(doc, generatedAt);
   doc.end();
 }
 
