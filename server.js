@@ -271,13 +271,13 @@ function generateNextGswpTitle() {
   let maxNum = -1;
   for (const row of rows) {
     const permitNo = parsePermitFieldsJson(row.permit_fields_json).general_permit_no || '';
-    const m = String(permitNo).match(/^SACHEM-GSWP-(\d{5})$/);
+    const m = String(permitNo).match(/^(?:SACHEM-)?GSWP-(\d{5})$/);
     if (!m) continue;
     const n = Number(m[1]);
     if (Number.isInteger(n) && n > maxNum) maxNum = n;
   }
   const next = maxNum + 1;
-  return `SACHEM-GSWP-${String(next).padStart(5, '0')}`;
+  return `GSWP-${String(next).padStart(5, '0')}`;
 }
 
 function normalizeDuplicateGswpNumbers() {
@@ -291,17 +291,22 @@ function normalizeDuplicateGswpNumbers() {
     for (const row of rows) {
       const fields = parsePermitFieldsJson(row.permit_fields_json);
       const existing = String(fields.general_permit_no || '');
-      const isValid = /^SACHEM-GSWP-(\d{5})$/.test(existing) && !seen.has(existing);
+      const m = existing.match(/^(?:SACHEM-)?GSWP-(\d{5})$/);
+      const normalizedExisting = m ? `GSWP-${m[1]}` : '';
+      const isValid = !!normalizedExisting && !seen.has(normalizedExisting);
+
       if (isValid) {
-        seen.add(existing);
-        const n = Number(existing.slice(-5));
+        fields.general_permit_no = normalizedExisting;
+        db.prepare(`UPDATE permits SET permit_fields_json = ? WHERE id = ?`).run(JSON.stringify(fields), row.id);
+        seen.add(normalizedExisting);
+        const n = Number(m[1]);
         if (n >= counter) counter = n + 1;
         continue;
       }
 
       let next;
       do {
-        next = `SACHEM-GSWP-${String(counter).padStart(5, '0')}`;
+        next = `GSWP-${String(counter).padStart(5, '0')}`;
         counter += 1;
       } while (seen.has(next));
 
