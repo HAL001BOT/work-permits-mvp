@@ -124,6 +124,12 @@ function migrate() {
       CREATE INDEX IF NOT EXISTS idx_permits_type ON permits(permit_type);
     `);
   });
+
+  applyMigration('006_permit_fields_json', () => {
+    db.exec(`
+      ALTER TABLE permits ADD COLUMN permit_fields_json TEXT NOT NULL DEFAULT '{}';
+    `);
+  });
 }
 
 module.exports = {

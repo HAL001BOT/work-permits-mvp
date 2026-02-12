@@ -93,6 +93,28 @@
       </article>
 
       <article class="card">
+        <h2 class="section-title">Template Field Values</h2>
+        <% if (!permitFieldSchema?.length) { %>
+          <p class="muted">No structured fields for this permit type.</p>
+        <% } else { %>
+          <dl class="detail-list">
+            <% permitFieldSchema.forEach(f => { %>
+              <div>
+                <dt><%= f.label %></dt>
+                <dd>
+                  <% if (f.type === 'checkbox') { %>
+                    <%= Number(permitFieldValues[f.key]) ? 'Yes' : 'No' %>
+                  <% } else { %>
+                    <%= permitFieldValues[f.key] || '—' %>
+                  <% } %>
+                </dd>
+              </div>
+            <% }) %>
+          </dl>
+        <% } %>
+      </article>
+
+      <article class="card">
         <h2 class="section-title">Description</h2>
         <p class="description"><%= permit.description || 'No description provided.' %></p>
       </article>

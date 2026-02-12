@@ -64,6 +64,73 @@ const TEMPLATE_TEXT_BY_TYPE = {
   [PERMIT_TYPES.WORKING_HEIGHTS]: `Template: EHSS_RC HEALTH & SAFETY WORK AT HEIGHT PERMIT 03-07-2025.docx\n\nWork-at-height scope\n- Fixed ladders 24 ft+, manlifts, or other >4 ft without guardrails\n\nInspection / authorization\n- Contractor vs Sachem path (inspection section routing)\n- Harness/lanyard inspection (tags readable, not expired, ANSI Z359, no damage/modification)\n- Work controls and approvals before start.`,
 };
 
+const PERMIT_FIELD_SCHEMAS = {
+  [PERMIT_TYPES.GENERAL_WORK_SAFE]: [
+    { key: 'start_time', label: 'Start Time', type: 'text' },
+    { key: 'end_date', label: 'Permit End Date', type: 'date' },
+    { key: 'building_location', label: 'Building / Location', type: 'text' },
+    { key: 'contractor_company', label: 'Contractor Company', type: 'text' },
+    { key: 'shift', label: 'Shift (A/B/C/D)', type: 'text' },
+    { key: 'equipment', label: 'Equipment Being Worked On', type: 'text' },
+    { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text' },
+    { key: 'shift_supervisor', label: 'Shift Supervisor', type: 'text' },
+    { key: 'work_order_number', label: 'Work Order Number', type: 'text' },
+    { key: 'project_number', label: 'Project Number', type: 'text' },
+    { key: 'scope_of_work', label: 'Work Description / Scope', type: 'textarea' },
+  ],
+  [PERMIT_TYPES.HOT_WORK]: [
+    { key: 'work_by', label: 'Hot Work By (Sachem/Contractor)', type: 'text' },
+    { key: 'additional_comments', label: 'Additional Comments', type: 'textarea' },
+    { key: 'fire_watch_required', label: 'Fire Watch Required', type: 'checkbox' },
+    { key: 'sparks_open_flame', label: 'Generates Sparks/Open Flame', type: 'checkbox' },
+    { key: 'fire_watch_after_1h', label: 'Fire Watch for 1h After Work', type: 'checkbox' },
+    { key: 'o2_lel_calibrated_on', label: 'O2/LEL Calibrated On', type: 'date' },
+    { key: 'o2_lel_next_calibration', label: 'O2/LEL Next Calibration', type: 'date' },
+    { key: 'initial_measurement', label: 'Initial Gas Measurement', type: 'text' },
+  ],
+  [PERMIT_TYPES.CONFINED_SPACE]: [
+    { key: 'space_id', label: 'Confined Space ID / Name', type: 'text' },
+    { key: 'entry_purpose', label: 'Entry Purpose', type: 'textarea' },
+    { key: 'entrants', label: 'Entrants', type: 'text' },
+    { key: 'attendant', label: 'Attendant', type: 'text' },
+    { key: 'entry_supervisor', label: 'Entry Supervisor', type: 'text' },
+    { key: 'atmospheric_tests', label: 'Atmospheric Test Results', type: 'textarea' },
+    { key: 'ventilation_required', label: 'Ventilation Required', type: 'checkbox' },
+    { key: 'rescue_plan', label: 'Rescue Plan', type: 'textarea' },
+  ],
+  [PERMIT_TYPES.LOTO]: [
+    { key: 'loto_date', label: 'LOTO Date', type: 'date' },
+    { key: 'expected_end_date', label: 'Expected Final Date', type: 'date' },
+    { key: 'job_scope', label: 'Job Scope', type: 'textarea' },
+    { key: 'electrical_isolated', label: 'Electrical Energy Isolated', type: 'checkbox' },
+    { key: 'mechanical_isolated', label: 'Mechanical Energy Isolated', type: 'checkbox' },
+    { key: 'thermal_isolated', label: 'Thermal Energy Isolated', type: 'checkbox' },
+    { key: 'chemical_isolated', label: 'Chemical Energy Isolated', type: 'checkbox' },
+    { key: 'hydraulic_pneumatic_isolated', label: 'Hydraulic/Pneumatic Isolated', type: 'checkbox' },
+    { key: 'lock_tag_ids', label: 'Lock/Tag IDs', type: 'textarea' },
+    { key: 'zero_energy_verified', label: 'Zero Energy Verified', type: 'checkbox' },
+  ],
+  [PERMIT_TYPES.LINE_BREAK]: [
+    { key: 'line_last_contained', label: 'Line Last Contained', type: 'text' },
+    { key: 'hazardous_material', label: 'Hazardous/Flammable Material', type: 'checkbox' },
+    { key: 'sds_reviewed', label: 'SDS Reviewed', type: 'checkbox' },
+    { key: 'loto_completed', label: 'LOTO Completed', type: 'checkbox' },
+    { key: 'line_identified', label: 'Line Identified by PM/Supervisor/Contractor', type: 'checkbox' },
+    { key: 'drained_vented', label: 'Lines Drained and Vented', type: 'checkbox' },
+    { key: 'cooled', label: 'Equipment/Lines Cooled (<=100F)', type: 'checkbox' },
+    { key: 'flushed_cleaned', label: 'Lines Flushed and Cleaned', type: 'checkbox' },
+  ],
+  [PERMIT_TYPES.WORKING_HEIGHTS]: [
+    { key: 'work_height_type', label: 'Type of Work at Height', type: 'text' },
+    { key: 'height_feet', label: 'Height (ft)', type: 'text' },
+    { key: 'contractor_work', label: 'Contractor / Third-party Work', type: 'checkbox' },
+    { key: 'harness_inspected_today', label: 'Harness/Lanyard Inspected Today', type: 'checkbox' },
+    { key: 'biannual_inspection_current', label: 'Biannual Inspection Up To Date', type: 'checkbox' },
+    { key: 'ansi_z359_tag', label: 'ANSI Z359 Tag Verified', type: 'checkbox' },
+    { key: 'lanyard_not_expired', label: 'Harness/Lanyard Not Expired', type: 'checkbox' },
+  ],
+};
+
 const FIELD_EDITABLE_STATUSES = new Set(['draft', 'submitted']);
 const ALLOWED_UPLOAD_MIME = new Set([
   'application/pdf',
@@ -139,6 +206,31 @@ function permitTypeLabel(type) {
 
 function templateTextForType(type) {
   return TEMPLATE_TEXT_BY_TYPE[type] || '';
+}
+
+function fieldSchemaForType(type) {
+  return PERMIT_FIELD_SCHEMAS[type] || [];
+}
+
+function parsePermitFieldsJson(value) {
+  if (!value) return {};
+  try {
+    const obj = JSON.parse(value);
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function extractPermitFieldsFromBody(body, permitType) {
+  const schema = fieldSchemaForType(permitType);
+  const fields = {};
+  for (const f of schema) {
+    const key = `pf__${f.key}`;
+    if (f.type === 'checkbox') fields[f.key] = body[key] ? 1 : 0;
+    else fields[f.key] = String(body[key] || '').trim();
+  }
+  return fields;
 }
 
 function parseRequiredPermitsJson(value) {
@@ -295,6 +387,7 @@ function pickSnapshot(permit) {
     permit_type: permit.permit_type,
     parent_permit_id: permit.parent_permit_id,
     required_permits: parseRequiredPermitsJson(permit.required_permits_json),
+    permit_fields: parsePermitFieldsJson(permit.permit_fields_json),
     approved_at: permit.approved_at,
     approver_name: permit.approver_name,
     signature_text: permit.signature_text,
@@ -337,9 +430,9 @@ function syncRequiredChildPermits(parentPermit, requiredTypes, userId) {
     if (existingByType.has(type)) continue;
     const title = `${permitTypeLabel(type)} - for Permit #${parentPermit.id}`;
     db.prepare(
-      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, parent_permit_id, required_permits_json)
-       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, '[]')`
-    ).run(title, templateTextForType(type), parentPermit.site, parentPermit.permit_date, userId, userId, type, parentPermit.id);
+      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, parent_permit_id, required_permits_json, permit_fields_json)
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, '[]', ?)`
+    ).run(title, templateTextForType(type), parentPermit.site, parentPermit.permit_date, userId, userId, type, parentPermit.id, JSON.stringify({}));
   }
 }
 
@@ -501,6 +594,8 @@ app.get('/permits/new', requireAuth, (req, res) => {
     permit: null,
     action: '/permits',
     error: null,
+    permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
+    permitFieldValues: {},
     supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
     permitTypeLabels: PERMIT_TYPE_LABELS,
   });
@@ -510,6 +605,7 @@ app.post('/permits', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   const { title, description = '', site, permit_date } = req.body;
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
+  const permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
   const finalDescription = (description || '').trim() || templateTextForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
   if (!title || !site || !permit_date) {
     return res.status(400).render('permit-form', {
@@ -518,15 +614,27 @@ app.post('/permits', requireAuth, (req, res) => {
       error: 'Title, site, and permit date are required.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
+      permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
+      permitFieldValues: permitFields,
     });
   }
 
   const result = db
     .prepare(
-      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json)
-       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)`
+      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json, permit_fields_json)
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`
     )
-    .run(title, finalDescription, site, permit_date, req.session.user.id, req.session.user.id, PERMIT_TYPES.GENERAL_WORK_SAFE, JSON.stringify(requiredPermits));
+    .run(
+      title,
+      finalDescription,
+      site,
+      permit_date,
+      req.session.user.id,
+      req.session.user.id,
+      PERMIT_TYPES.GENERAL_WORK_SAFE,
+      JSON.stringify(requiredPermits),
+      JSON.stringify(permitFields)
+    );
 
   const parent = getPermitById(result.lastInsertRowid);
   syncRequiredChildPermits(parent, requiredPermits, req.session.user.id);
@@ -545,6 +653,8 @@ app.get('/permits/:id(\\d+)/edit', requireAuth, (req, res) => {
     error: null,
     supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
     permitTypeLabels: PERMIT_TYPE_LABELS,
+    permitFieldSchema: fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE),
+    permitFieldValues: parsePermitFieldsJson(permit.permit_fields_json),
   });
 });
 
@@ -555,6 +665,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
 
   const { title, description = '', site, permit_date } = req.body;
   const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
+  const permitType = permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE;
+  const permitFields = extractPermitFieldsFromBody(req.body, permitType);
 
   if (!title || !site || !permit_date) {
     return res.status(400).render('permit-form', {
@@ -563,14 +675,16 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       error: 'Title, site, and permit date are required.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
+      permitFieldSchema: fieldSchemaForType(permitType),
+      permitFieldValues: permitFields,
     });
   }
 
   db.prepare(
     `UPDATE permits
-     SET title = ?, description = ?, site = ?, permit_date = ?, required_permits_json = ?, updated_by = ?, updated_at = datetime('now')
+     SET title = ?, description = ?, site = ?, permit_date = ?, required_permits_json = ?, permit_fields_json = ?, updated_by = ?, updated_at = datetime('now')
      WHERE id = ?`
-  ).run(title, description, site, permit_date, JSON.stringify(requiredPermits), req.session.user.id, req.params.id);
+  ).run(title, description, site, permit_date, JSON.stringify(requiredPermits), JSON.stringify(permitFields), req.session.user.id, req.params.id);
 
   const updated = getPermitById(req.params.id);
   syncRequiredChildPermits(updated, requiredPermits, req.session.user.id);
@@ -680,6 +794,8 @@ app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
 
   const requiredPermitTypes = parseRequiredPermitsJson(permit.required_permits_json);
   const childPermits = getChildPermits(permit.id);
+  const permitFieldSchema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
+  const permitFieldValues = parsePermitFieldsJson(permit.permit_fields_json);
 
   res.render('permit-detail', {
     permit,
@@ -688,6 +804,8 @@ app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
     permitTypeLabels: PERMIT_TYPE_LABELS,
     requiredPermitTypes,
     childPermits,
+    permitFieldSchema,
+    permitFieldValues,
     permissions: {
       canEdit: canEditFields(req.session.user, permit),
       canDeletePermit: canDeletePermit(req.session.user),

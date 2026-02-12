@@ -25,6 +25,7 @@
         if (Array.isArray(permit.required_permits)) return permit.required_permits;
         try { return JSON.parse(permit.required_permits_json || '[]'); } catch { return []; }
       })();
+      const fieldValues = permitFieldValues || {};
     %>
 
     <form method="post" action="<%= action %>" class="card form-stack">
@@ -54,6 +55,29 @@
               <label class="row gap" style="align-items:center;">
                 <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
                 <span><%= permitTypeLabels[type] %></span>
+              </label>
+            <% }) %>
+          </div>
+        </fieldset>
+      <% } %>
+
+      <% if (permitFieldSchema?.length) { %>
+        <fieldset>
+          <legend><%= permitTypeLabels[currentType] || currentType %> Template Fields</legend>
+          <div class="form-stack">
+            <% permitFieldSchema.forEach(f => { %>
+              <label>
+                <%= f.label %>
+                <% if (f.type === 'textarea') { %>
+                  <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
+                <% } else if (f.type === 'checkbox') { %>
+                  <span class="row gap" style="align-items:center; margin-top:6px;">
+                    <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= Number(fieldValues[f.key]) ? 'checked' : '' %> />
+                    <span class="muted">Yes</span>
+                  </span>
+                <% } else { %>
+                  <input type="<%= f.type === 'date' ? 'date' : 'text' %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" />
+                <% } %>
               </label>
             <% }) %>
           </div>
