@@ -10,8 +10,8 @@
   <main class="container">
     <header class="page-header row wrap space-between gap">
       <div>
-        <h1>Permit #<%= permit.id %> <span class="status-pill status-<%= permit.status %>"><%= permit.status %></span></h1>
-        <p class="muted"><%= permit.title %> · <%= permitTypeLabels[permit.permit_type || 'general_work_safe'] %> · revision r<%= permit.revision %> · <%= permit.is_locked ? 'Locked' : 'Editable' %></p>
+        <h1>Permit <%= permit.id %> <span class="status-pill status-<%= permit.status %>"><%= permit.status %></span></h1>
+        <p class="muted"><%= permitTypeLabels[permit.permit_type || 'general_work_safe'] %> · revision <%= permit.revision %> · Start: <%= permitFieldValues.start_date || '—' %> <%= permitFieldValues.start_time || '' %> · <%= permit.is_locked ? 'Locked' : 'Editable' %></p>
       </div>
       <div class="row gap wrap">
         <a class="button ghost" href="/permits">Back</a>

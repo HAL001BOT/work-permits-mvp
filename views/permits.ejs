@@ -61,12 +61,12 @@
           <tbody>
             <% permits.forEach(p => { %>
               <tr>
-                <td>#<%= p.id %></td>
+                <td><%= p.id %></td>
                 <td><strong><%= p.title %></strong></td>
-                <td><%= p.permit_type || 'general_work_safe' %><% if (p.parent_permit_id) { %> (Parent #<%= p.parent_permit_id %>)<% } %></td>
+                <td><%= (p.permit_type === 'general_work_safe' ? 'GSWP' : (p.permit_type || '')) %><% if (p.parent_permit_id) { %> (Parent <%= p.parent_permit_id %>)<% } %></td>
                 <td><%= p.site %></td>
                 <td><span class="status-pill status-<%= p.status %>"><%= p.status %></span></td>
-                <td>r<%= p.revision %></td>
+                <td><%= p.revision %></td>
                 <td><%= p.permit_date %></td>
                 <td><%= p.updated_at %></td>
                 <td><%= p.updated_by_name %></td>
