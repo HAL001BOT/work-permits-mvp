@@ -66,21 +66,25 @@ const TEMPLATE_TEXT_BY_TYPE = {
 
 const PERMIT_FIELD_SCHEMAS = {
   [PERMIT_TYPES.GENERAL_WORK_SAFE]: [
-    { key: 'general_permit_no', label: 'General Work Permit Number', type: 'text', readOnly: true, section: 'General Information' },
-    { key: 'start_time', label: 'Start Time', type: 'time', section: 'General Information' },
-    { key: 'start_date', label: 'Start Date', type: 'date', section: 'General Information' },
-    { key: 'building_location', label: 'Building / Location', type: 'select', options: ['Manufacturing building', 'Production building', 'Tanks'], section: 'General Information' },
-    { key: 'contractor_company', label: 'Contractor Company', type: 'text', section: 'General Information' },
-    { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C', 'D'], section: 'General Information' },
-    { key: 'equipment', label: 'Equipment Being Worked On', type: 'text', section: 'General Information' },
-    { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text', section: 'General Information' },
-    { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'text', section: 'General Information' },
-    { key: 'work_order_number', label: 'Work Order Number', type: 'text', section: 'General Information' },
-    { key: 'project_number', label: 'Project Number (if applicable)', type: 'text', section: 'General Information' },
+    { key: 'general_permit_no', label: 'General Work Permit Number', type: 'text', readOnly: true, required: true, section: 'General Information' },
+    { key: 'start_time', label: 'Start Time', type: 'time', required: true, section: 'General Information' },
+    { key: 'start_date', label: 'Start Date', type: 'date', required: true, section: 'General Information' },
+    { key: 'building_location', label: 'Building / Location', type: 'select', options: ['Manufacturing building', 'Production building', 'Tanks'], required: true, section: 'General Information' },
+    { key: 'contractor_company', label: 'Contractor Company', type: 'text', required: true, section: 'General Information' },
+    { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C', 'D'], required: true, section: 'General Information' },
+    { key: 'equipment', label: 'Equipment Being Worked On', type: 'text', required: true, section: 'General Information' },
+    { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text', required: true, section: 'General Information' },
+    { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'text', required: true, section: 'General Information' },
+    { key: 'work_order_number', label: 'Work Order Number', type: 'text', required: true, section: 'General Information' },
+    { key: 'project_number', label: 'Project Number (if applicable)', type: 'text', required: true, section: 'General Information' },
 
-    { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', section: 'Section 1 – Additional Work Permits' },
+    { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', required: true, section: 'Section 1 – Additional Work Permits' },
 
-    { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', section: 'Section 2a – Work Description' },
+    { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', required: true, section: 'Section 2a – Work Description' },
+    { key: 'hard_hat', label: 'Hard Hat', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'full_sleeve_shirt', label: 'Full Sleeve Shirt', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'steel_toe_shoes', label: 'Steel Toe Shoes', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
+    { key: 'safety_glasses', label: 'Safety Glasses', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
     { key: 'face_shield', label: 'Face shield', type: 'checkbox', section: 'Section 2b – PPE Required' },
     { key: 'welding_face_shield', label: 'Welding Face shield', type: 'checkbox', section: 'Section 2b – PPE Required' },
     { key: 'full_face_respirator', label: 'Full Face Respirator', type: 'checkbox', section: 'Section 2b – PPE Required' },
@@ -93,10 +97,6 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'chemical_gloves', label: 'Chemical Gloves', type: 'checkbox', section: 'Section 2b – PPE Required' },
     { key: 'chemical_apron', label: 'Chemical Apron', type: 'checkbox', section: 'Section 2b – PPE Required' },
     { key: 'dust_mask', label: 'Dust Mask', type: 'checkbox', section: 'Section 2b – PPE Required' },
-    { key: 'hard_hat', label: 'Hard Hat', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
-    { key: 'full_sleeve_shirt', label: 'Full Sleeve Shirt', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
-    { key: 'steel_toe_shoes', label: 'Steel Toe Shoes', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
-    { key: 'safety_glasses', label: 'Safety Glasses', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
     { key: 'other_text', label: 'Others', type: 'text', section: 'Section 2b – PPE Required' },
 
     { key: 'haz_low_visibility', label: 'Low visibility', type: 'checkbox', section: 'Section 3 – Hazard Evaluation' },
@@ -121,17 +121,17 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'hazard_controls', label: '3a. Steps taken to mitigate hazards', type: 'textarea', section: 'Section 3 – Hazard Evaluation' },
     { key: 'mobile_equipment_cert_initials', label: 'Mobile Equipment Certification Initials', type: 'text', section: 'Section 3 – Hazard Evaluation' },
 
-    { key: 'personnel_trained_protocols', label: 'Personnel trained in on-site safety protocols', type: 'select', options: ['Yes', 'No'], section: 'Section 4 – Hazard Communication & Worksite Safety' },
-    { key: 'personnel_briefed_hazards', label: 'Personnel briefed on area hazards', type: 'select', options: ['Yes', 'No'], section: 'Section 4 – Hazard Communication & Worksite Safety' },
-    { key: 'needs_shutdown', label: 'Equipment/process needs shutdown', type: 'select', options: ['Yes', 'No', 'N/A'], section: 'Section 4 – Hazard Communication & Worksite Safety' },
-    { key: 'chemicals_cleared', label: 'Chemicals in work area cleared', type: 'select', options: ['Yes', 'No', 'N/A'], section: 'Section 4 – Hazard Communication & Worksite Safety' },
+    { key: 'personnel_trained_protocols', label: 'Personnel trained in on-site safety protocols', type: 'select', options: ['Yes', 'No'], required: true, section: 'Section 4 – Hazard Communication & Worksite Safety' },
+    { key: 'personnel_briefed_hazards', label: 'Personnel briefed on area hazards', type: 'select', options: ['Yes', 'No'], required: true, section: 'Section 4 – Hazard Communication & Worksite Safety' },
+    { key: 'needs_shutdown', label: 'Equipment/process needs shutdown', type: 'select', options: ['Yes', 'No', 'N/A'], required: true, section: 'Section 4 – Hazard Communication & Worksite Safety' },
+    { key: 'chemicals_cleared', label: 'Chemicals in work area cleared', type: 'select', options: ['Yes', 'No', 'N/A'], required: true, section: 'Section 4 – Hazard Communication & Worksite Safety' },
 
-    { key: 'team_member_signoffs', label: '5a. Personnel sign-off names/dates', type: 'textarea', section: 'Section 5 – Approval & Closeout' },
-    { key: 'team_leader_sign', label: 'Team leader sign / date', type: 'text', section: 'Section 5 – Approval & Closeout' },
-    { key: 'closeout_completed', label: '5b. Work has been completed', type: 'checkbox', section: 'Section 5 – Approval & Closeout' },
-    { key: 'closeout_not_completed', label: '5b. Work has NOT been completed', type: 'checkbox', section: 'Section 5 – Approval & Closeout' },
-    { key: 'closeout_comments', label: 'Closeout comments', type: 'textarea', section: 'Section 5 – Approval & Closeout' },
-    { key: 'area_owner_sign', label: 'Shift Supervisor / Area Owner sign / date', type: 'text', section: 'Section 5 – Approval & Closeout' },
+    { key: 'team_member_signoffs', label: '5a. Personnel sign-off names/dates', type: 'textarea', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'team_leader_sign', label: 'Team leader sign / date', type: 'text', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'closeout_completed', label: '5b. Work has been completed', type: 'checkbox', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'closeout_not_completed', label: '5b. Work has NOT been completed', type: 'checkbox', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'closeout_comments', label: 'Closeout comments', type: 'textarea', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'area_owner_sign', label: 'Shift Supervisor / Area Owner sign / date', type: 'text', required: true, section: 'Section 5 – Approval & Closeout' },
   ],
   [PERMIT_TYPES.HOT_WORK]: [
     { key: 'work_by', label: 'Hot Work By (Sachem/Contractor)', type: 'text' },
@@ -318,6 +318,32 @@ function parseRequiredPermitsJson(value) {
 function normalizeRequiredPermits(input) {
   const raw = Array.isArray(input) ? input : input ? [input] : [];
   return Array.from(new Set(raw.filter((x) => SUPPLEMENTAL_PERMIT_TYPES.includes(x))));
+}
+
+function validatePermitFields(permitType, permitFields) {
+  if (permitType !== PERMIT_TYPES.GENERAL_WORK_SAFE) return null;
+
+  const schema = fieldSchemaForType(permitType);
+  for (const f of schema) {
+    if (!f.required) continue;
+    const val = permitFields[f.key];
+    if (f.type === 'checkbox') {
+      if (!Number(val)) return `${f.label} is required.`;
+    } else if (!String(val || '').trim()) {
+      return `${f.label} is required.`;
+    }
+  }
+
+  const hazardKeys = [
+    'haz_low_visibility', 'haz_chemical_exposure', 'haz_explosion_hazard', 'haz_noise_exposure', 'haz_hot_cold_environment',
+    'haz_slip_trip_fall', 'haz_fall_from_height', 'haz_falling_objects', 'haz_mobile_equipment', 'haz_caught_between',
+    'haz_struck_against', 'haz_sharp_objects', 'haz_stored_energy', 'haz_compressed_gas', 'haz_flammable_material',
+    'haz_spilled_chemical', 'haz_environmental_exposure', 'haz_confined_space',
+  ];
+  const selectedHazards = hazardKeys.filter((k) => Number(permitFields[k]));
+  if (!selectedHazards.length) return 'Section 3 requires at least one hazard selected.';
+
+  return null;
 }
 
 function isGeneralPermit(permit) {
@@ -739,6 +765,19 @@ app.post('/permits', requireAuth, (req, res) => {
     });
   }
 
+  const gswpValidationError = validatePermitFields(PERMIT_TYPES.GENERAL_WORK_SAFE, permitFields);
+  if (gswpValidationError) {
+    return res.status(400).render('permit-form', {
+      permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
+      action: '/permits',
+      error: gswpValidationError,
+      supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+      permitTypeLabels: PERMIT_TYPE_LABELS,
+      permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
+      permitFieldValues: permitFields,
+    });
+  }
+
   const result = db
     .prepare(
       `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json, permit_fields_json)
@@ -812,6 +851,19 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
       action: `/permits/${req.params.id}`,
       error: 'Start date must be before or equal to permit end date.',
+      supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+      permitTypeLabels: PERMIT_TYPE_LABELS,
+      permitFieldSchema: fieldSchemaForType(permitType),
+      permitFieldValues: permitFields,
+    });
+  }
+
+  const gswpValidationError = validatePermitFields(permitType, permitFields);
+  if (gswpValidationError) {
+    return res.status(400).render('permit-form', {
+      permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
+      action: `/permits/${req.params.id}`,
+      error: gswpValidationError,
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
       permitFieldSchema: fieldSchemaForType(permitType),

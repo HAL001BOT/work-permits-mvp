@@ -48,7 +48,7 @@
                   <label>
                     <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                     <% if (f.type === 'textarea') { %>
-                      <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
+                      <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %>><%= fieldValues[f.key] || '' %></textarea>
                     <% } else if (f.type === 'checkbox') { %>
                       <span class="check-option" style="margin-top:6px;">
                         <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
@@ -60,14 +60,14 @@
                         <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
                       </span>
                     <% } else if (f.type === 'select') { %>
-                      <select name="pf__<%= f.key %>">
+                      <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> >
                         <option value="">Select...</option>
                         <% (f.options || []).forEach(opt => { %>
                           <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
                         <% }) %>
                       </select>
                     <% } else { %>
-                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> />
+                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> />
                     <% } %>
                   </label>
                 <% } %>
@@ -95,7 +95,7 @@
                   </label>
                 <% }) %>
                 <label class="check-option">
-                  <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> />
+                  <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> required />
                   <span>I confirm no other permits are needed</span>
                 </label>
               <% } %>
