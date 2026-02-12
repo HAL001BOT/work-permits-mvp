@@ -44,16 +44,19 @@
             <legend><%= sectionName %></legend>
             <div class="form-stack">
               <% fields.forEach(f => { %>
-                <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits')) { %>
+                <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
                   <label>
                     <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                     <% if (f.type === 'textarea') { %>
                       <textarea name="pf__<%= f.key %>" rows="4"><%= fieldValues[f.key] || '' %></textarea>
                     <% } else if (f.type === 'checkbox') { %>
                       <span class="check-option" style="margin-top:6px;">
-                        <input type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
+                        <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= f.forcedTrue ? 'disabled' : '' %> />
                         <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
                         <span><%= f.label %></span>
+                        <% if (f.key === 'haz_mobile_equipment') { %>
+                          <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" />
+                        <% } %>
                         <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
                       </span>
                     <% } else if (f.type === 'select') { %>
@@ -107,5 +110,21 @@
       </div>
     </form>
   </main>
+  <script>
+    (function () {
+      const mobileHazard = document.getElementById('pf__haz_mobile_equipment');
+      const initials = document.getElementById('pf__mobile_equipment_cert_initials');
+      if (!mobileHazard || !initials) return;
+
+      function syncInitialsVisibility() {
+        const show = mobileHazard.checked;
+        initials.style.display = show ? 'inline-block' : 'none';
+        if (!show) initials.value = '';
+      }
+
+      mobileHazard.addEventListener('change', syncInitialsVisibility);
+      syncInitialsVisibility();
+    })();
+  </script>
 </body>
 </html>
