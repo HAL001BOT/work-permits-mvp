@@ -113,6 +113,17 @@ function migrate() {
       CREATE INDEX IF NOT EXISTS idx_attachments_permit ON permit_attachments(permit_id);
     `);
   });
+
+  applyMigration('005_permit_templates', () => {
+    db.exec(`
+      ALTER TABLE permits ADD COLUMN permit_type TEXT NOT NULL DEFAULT 'general_work_safe';
+      ALTER TABLE permits ADD COLUMN parent_permit_id INTEGER;
+      ALTER TABLE permits ADD COLUMN required_permits_json TEXT NOT NULL DEFAULT '[]';
+
+      CREATE INDEX IF NOT EXISTS idx_permits_parent ON permits(parent_permit_id);
+      CREATE INDEX IF NOT EXISTS idx_permits_type ON permits(permit_type);
+    `);
+  });
 }
 
 module.exports = {

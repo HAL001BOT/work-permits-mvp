@@ -11,7 +11,7 @@
     <header class="page-header row wrap space-between gap">
       <div>
         <h1>Permit #<%= permit.id %> <span class="status-pill status-<%= permit.status %>"><%= permit.status %></span></h1>
-        <p class="muted"><%= permit.title %> · revision r<%= permit.revision %> · <%= permit.is_locked ? 'Locked' : 'Editable' %></p>
+        <p class="muted"><%= permit.title %> · <%= permitTypeLabels[permit.permit_type || 'general_work_safe'] %> · revision r<%= permit.revision %> · <%= permit.is_locked ? 'Locked' : 'Editable' %></p>
       </div>
       <div class="row gap wrap">
         <a class="button ghost" href="/permits">Back</a>
@@ -27,6 +27,8 @@
         <dl class="detail-list">
           <div><dt>Site</dt><dd><%= permit.site %></dd></div>
           <div><dt>Permit Date</dt><dd><%= permit.permit_date %></dd></div>
+          <div><dt>Type</dt><dd><%= permitTypeLabels[permit.permit_type || 'general_work_safe'] %></dd></div>
+          <div><dt>Parent Permit</dt><dd><%= permit.parent_permit_id ? ('#' + permit.parent_permit_id) : '—' %></dd></div>
           <div><dt>Created By</dt><dd><%= permit.created_by_name %></dd></div>
           <div><dt>Updated By</dt><dd><%= permit.updated_by_name %></dd></div>
           <div><dt>Approved By</dt><dd><%= permit.approver_name || '—' %></dd></div>
@@ -58,6 +60,30 @@
               <form method="post" action="/permits/<%= permit.id %>/transition" onsubmit="return confirm('Reopen this permit and increment revision?');"><input type="hidden" name="action" value="reopen" /><button class="button ghost" type="submit">Reopen</button></form>
             <% } %>
           </div>
+        <% } %>
+      </article>
+
+      <article class="card">
+        <h2 class="section-title">Required Permits</h2>
+        <% if ((permit.permit_type || 'general_work_safe') !== 'general_work_safe') { %>
+          <p class="muted">This is a supplemental permit linked to General Work Safe permit #<%= permit.parent_permit_id %>.</p>
+        <% } else if (!requiredPermitTypes.length) { %>
+          <p class="muted">No supplemental permits required.</p>
+        <% } else { %>
+          <ul class="activity-list">
+            <% requiredPermitTypes.forEach(type => {
+              const child = childPermits.find(p => p.permit_type === type);
+            %>
+              <li>
+                <strong><%= permitTypeLabels[type] %></strong>
+                <% if (!child) { %>
+                  <span class="muted"> — missing</span>
+                <% } else { %>
+                  <span class="muted"> — status: <%= child.status %> · <a href="/permits/<%= child.id %>">Permit #<%= child.id %></a></span>
+                <% } %>
+              </li>
+            <% }) %>
+          </ul>
         <% } %>
       </article>
 

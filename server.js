@@ -22,6 +22,35 @@ const ROLES = {
   VIEWER: 'viewer',
 };
 
+const PERMIT_TYPES = {
+  GENERAL_WORK_SAFE: 'general_work_safe',
+  HOT_WORK: 'hot_work',
+  CONFINED_SPACE: 'confined_space',
+  LOTO: 'loto',
+  EXCAVATION: 'excavation',
+  LINE_BREAK: 'line_break',
+  WORKING_HEIGHTS: 'working_heights',
+};
+
+const SUPPLEMENTAL_PERMIT_TYPES = [
+  PERMIT_TYPES.HOT_WORK,
+  PERMIT_TYPES.CONFINED_SPACE,
+  PERMIT_TYPES.LOTO,
+  PERMIT_TYPES.EXCAVATION,
+  PERMIT_TYPES.LINE_BREAK,
+  PERMIT_TYPES.WORKING_HEIGHTS,
+];
+
+const PERMIT_TYPE_LABELS = {
+  [PERMIT_TYPES.GENERAL_WORK_SAFE]: 'General Work Safe',
+  [PERMIT_TYPES.HOT_WORK]: 'Hot Work Permit',
+  [PERMIT_TYPES.CONFINED_SPACE]: 'Confined Space Permit',
+  [PERMIT_TYPES.LOTO]: 'LOTO / Energy Isolation Permit',
+  [PERMIT_TYPES.EXCAVATION]: 'Excavation Permit',
+  [PERMIT_TYPES.LINE_BREAK]: 'Line Break Permit',
+  [PERMIT_TYPES.WORKING_HEIGHTS]: 'Working at Heights Permit',
+};
+
 const FIELD_EDITABLE_STATUSES = new Set(['draft', 'submitted']);
 const ALLOWED_UPLOAD_MIME = new Set([
   'application/pdf',
@@ -88,6 +117,30 @@ function hasAnyRole(user, roles) {
 
 function canCreatePermit(user) {
   return hasAnyRole(user, [ROLES.ADMIN, ROLES.SUPERVISOR, ROLES.REQUESTER]);
+}
+
+function permitTypeLabel(type) {
+  return PERMIT_TYPE_LABELS[type] || type;
+}
+
+function parseRequiredPermitsJson(value) {
+  if (!value) return [];
+  try {
+    const arr = JSON.parse(value);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((x) => SUPPLEMENTAL_PERMIT_TYPES.includes(x));
+  } catch {
+    return [];
+  }
+}
+
+function normalizeRequiredPermits(input) {
+  const raw = Array.isArray(input) ? input : input ? [input] : [];
+  return Array.from(new Set(raw.filter((x) => SUPPLEMENTAL_PERMIT_TYPES.includes(x))));
+}
+
+function isGeneralPermit(permit) {
+  return (permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE) === PERMIT_TYPES.GENERAL_WORK_SAFE;
 }
 
 function canEditFields(user, permit) {
@@ -221,6 +274,9 @@ function pickSnapshot(permit) {
     site: permit.site,
     status: permit.status,
     permit_date: permit.permit_date,
+    permit_type: permit.permit_type,
+    parent_permit_id: permit.parent_permit_id,
+    required_permits: parseRequiredPermitsJson(permit.required_permits_json),
     approved_at: permit.approved_at,
     approver_name: permit.approver_name,
     signature_text: permit.signature_text,
@@ -239,6 +295,62 @@ function getPermitById(id) {
        WHERE p.id = ?`
     )
     .get(id);
+}
+
+function getChildPermits(parentPermitId) {
+  return db
+    .prepare(
+      `SELECT p.*, c.username AS created_by_name, u.username AS updated_by_name
+       FROM permits p
+       JOIN users c ON c.id = p.created_by
+       JOIN users u ON u.id = p.updated_by
+       WHERE p.parent_permit_id = ?
+       ORDER BY p.id ASC`
+    )
+    .all(parentPermitId);
+}
+
+function syncRequiredChildPermits(parentPermit, requiredTypes, userId) {
+  if (!isGeneralPermit(parentPermit)) return;
+  const existing = getChildPermits(parentPermit.id);
+  const existingByType = new Map(existing.map((p) => [p.permit_type, p]));
+
+  for (const type of requiredTypes) {
+    if (existingByType.has(type)) continue;
+    const title = `${permitTypeLabel(type)} - for Permit #${parentPermit.id}`;
+    db.prepare(
+      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, parent_permit_id, required_permits_json)
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, '[]')`
+    ).run(title, '', parentPermit.site, parentPermit.permit_date, userId, userId, type, parentPermit.id);
+  }
+}
+
+function validateGeneralTransitionRequirements(permit, action) {
+  if (!isGeneralPermit(permit)) return null;
+  const requiredTypes = parseRequiredPermitsJson(permit.required_permits_json);
+  if (!requiredTypes.length) return null;
+
+  const childrenByType = new Map(getChildPermits(permit.id).map((p) => [p.permit_type, p]));
+  const missing = requiredTypes.filter((t) => !childrenByType.has(t));
+  if (missing.length) return `Missing required permits: ${missing.map((t) => permitTypeLabel(t)).join(', ')}`;
+
+  if (action === 'submit') {
+    const notSubmitted = requiredTypes.filter((t) => {
+      const status = childrenByType.get(t)?.status;
+      return !['submitted', 'approved', 'closed'].includes(status);
+    });
+    if (notSubmitted.length) return `Submit required permits first: ${notSubmitted.map((t) => permitTypeLabel(t)).join(', ')}`;
+  }
+
+  if (action === 'approve') {
+    const notApproved = requiredTypes.filter((t) => {
+      const status = childrenByType.get(t)?.status;
+      return !['approved', 'closed'].includes(status);
+    });
+    if (notApproved.length) return `Approve required permits first: ${notApproved.map((t) => permitTypeLabel(t)).join(', ')}`;
+  }
+
+  return null;
 }
 
 const BRAND = {
@@ -367,19 +479,40 @@ app.get('/permits', requireAuth, (req, res) => {
 
 app.get('/permits/new', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
-  res.render('permit-form', { permit: null, action: '/permits', error: null });
+  res.render('permit-form', {
+    permit: null,
+    action: '/permits',
+    error: null,
+    supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+    permitTypeLabels: PERMIT_TYPE_LABELS,
+  });
 });
 
 app.post('/permits', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   const { title, description = '', site, permit_date } = req.body;
-  if (!title || !site || !permit_date) return res.status(400).render('permit-form', { permit: req.body, action: '/permits', error: 'Title, site, and permit date are required.' });
+  const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
+  if (!title || !site || !permit_date) {
+    return res.status(400).render('permit-form', {
+      permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
+      action: '/permits',
+      error: 'Title, site, and permit date are required.',
+      supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+      permitTypeLabels: PERMIT_TYPE_LABELS,
+    });
+  }
 
   const result = db
-    .prepare(`INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by) VALUES (?, ?, ?, 'draft', ?, ?, ?)`)
-    .run(title, description, site, permit_date, req.session.user.id, req.session.user.id);
+    .prepare(
+      `INSERT INTO permits (title, description, site, status, permit_date, created_by, updated_by, permit_type, required_permits_json)
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)`
+    )
+    .run(title, description, site, permit_date, req.session.user.id, req.session.user.id, PERMIT_TYPES.GENERAL_WORK_SAFE, JSON.stringify(requiredPermits));
 
-  logAudit(result.lastInsertRowid, 'create', null, { title, description, site, status: 'draft', permit_date, revision: 1 }, req.session.user.id);
+  const parent = getPermitById(result.lastInsertRowid);
+  syncRequiredChildPermits(parent, requiredPermits, req.session.user.id);
+
+  logAudit(result.lastInsertRowid, 'create', null, { title, description, site, status: 'draft', permit_date, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits: requiredPermits, revision: 1 }, req.session.user.id);
   res.redirect(`/permits/${result.lastInsertRowid}`);
 });
 
@@ -387,7 +520,13 @@ app.get('/permits/:id(\\d+)/edit', requireAuth, (req, res) => {
   const permit = getPermitById(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
   if (!canEditFields(req.session.user, permit)) return res.status(403).send('Forbidden');
-  res.render('permit-form', { permit, action: `/permits/${permit.id}`, error: null });
+  res.render('permit-form', {
+    permit,
+    action: `/permits/${permit.id}`,
+    error: null,
+    supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+    permitTypeLabels: PERMIT_TYPE_LABELS,
+  });
 });
 
 app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
@@ -396,20 +535,28 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   if (!canEditFields(req.session.user, permit)) return res.status(403).send('Forbidden');
 
   const { title, description = '', site, permit_date } = req.body;
+  const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
+
   if (!title || !site || !permit_date) {
-    return res.status(400).render('permit-form', { permit: { ...permit, ...req.body }, action: `/permits/${req.params.id}`, error: 'Title, site, and permit date are required.' });
+    return res.status(400).render('permit-form', {
+      permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
+      action: `/permits/${req.params.id}`,
+      error: 'Title, site, and permit date are required.',
+      supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
+      permitTypeLabels: PERMIT_TYPE_LABELS,
+    });
   }
 
-  db.prepare(`UPDATE permits SET title = ?, description = ?, site = ?, permit_date = ?, updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(
-    title,
-    description,
-    site,
-    permit_date,
-    req.session.user.id,
-    req.params.id
-  );
+  db.prepare(
+    `UPDATE permits
+     SET title = ?, description = ?, site = ?, permit_date = ?, required_permits_json = ?, updated_by = ?, updated_at = datetime('now')
+     WHERE id = ?`
+  ).run(title, description, site, permit_date, JSON.stringify(requiredPermits), req.session.user.id, req.params.id);
 
-  logAudit(req.params.id, 'update', pickSnapshot(permit), { ...pickSnapshot(permit), title, description, site, permit_date }, req.session.user.id);
+  const updated = getPermitById(req.params.id);
+  syncRequiredChildPermits(updated, requiredPermits, req.session.user.id);
+
+  logAudit(req.params.id, 'update', pickSnapshot(permit), pickSnapshot(updated), req.session.user.id);
   res.redirect(`/permits/${req.params.id}`);
 });
 
@@ -420,6 +567,9 @@ app.post('/permits/:id(\\d+)/transition', requireAuth, (req, res) => {
   const action = (req.body.action || '').trim();
   const allowed = transitionActions(req.session.user, permit);
   if (!allowed.includes(action)) return res.status(403).send('Transition not allowed');
+
+  const transitionRequirementError = validateGeneralTransitionRequirements(permit, action);
+  if (transitionRequirementError) return res.status(400).send(transitionRequirementError);
 
   const tx = db.transaction(() => {
     if (action === 'submit') {
@@ -490,10 +640,16 @@ app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
     )
     .all(req.params.id);
 
+  const requiredPermitTypes = parseRequiredPermitsJson(permit.required_permits_json);
+  const childPermits = getChildPermits(permit.id);
+
   res.render('permit-detail', {
     permit,
     recentAudit,
     attachments,
+    permitTypeLabels: PERMIT_TYPE_LABELS,
+    requiredPermitTypes,
+    childPermits,
     permissions: {
       canEdit: canEditFields(req.session.user, permit),
       canDeletePermit: canDeletePermit(req.session.user),
@@ -572,11 +728,11 @@ app.get('/permits/export.csv', requireAuth, (req, res) => {
   const { where, params } = getFilterContext(req.query);
   const whereNoAlias = where.replace(/p\./g, '');
   const rows = db
-    .prepare(`SELECT id,title,description,site,status,permit_date,revision,is_locked,approver_name,approved_at,created_at,updated_at FROM permits ${whereNoAlias} ORDER BY updated_at DESC`)
+    .prepare(`SELECT id,title,description,site,status,permit_type,parent_permit_id,required_permits_json,permit_date,revision,is_locked,approver_name,approved_at,created_at,updated_at FROM permits ${whereNoAlias} ORDER BY updated_at DESC`)
     .all(...params);
 
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['id', 'title', 'description', 'site', 'status', 'permit_date', 'revision', 'is_locked', 'approver_name', 'approved_at', 'created_at', 'updated_at'];
+  const header = ['id', 'title', 'description', 'site', 'status', 'permit_type', 'parent_permit_id', 'required_permits_json', 'permit_date', 'revision', 'is_locked', 'approver_name', 'approved_at', 'created_at', 'updated_at'];
   const csv = [header.join(',')].concat(rows.map((row) => header.map((h) => esc(row[h])).join(','))).join('\n');
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="permits.csv"');

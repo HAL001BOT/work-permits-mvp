@@ -11,9 +11,21 @@
     <header class="page-header">
       <h1><%= permit ? 'Edit' : 'Create New' %> Permit</h1>
       <p class="muted">Status transitions are controlled from the permit detail page.</p>
+      <% if (permit?.parent_permit_id) { %>
+        <p class="muted">Linked to General Work Safe Permit #<%= permit.parent_permit_id %>.</p>
+      <% } %>
     </header>
 
     <% if (error) { %><p class="error"><%= error %></p><% } %>
+
+    <%
+      const currentType = permit?.permit_type || 'general_work_safe';
+      const selectedRequired = (() => {
+        if (!permit) return [];
+        if (Array.isArray(permit.required_permits)) return permit.required_permits;
+        try { return JSON.parse(permit.required_permits_json || '[]'); } catch { return []; }
+      })();
+    %>
 
     <form method="post" action="<%= action %>" class="card form-stack">
       <label>Title
@@ -28,6 +40,26 @@
       <label>Permit Date
         <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
       </label>
+
+      <label>Permit Type
+        <input value="<%= permitTypeLabels[currentType] || currentType %>" disabled />
+      </label>
+
+      <% if (currentType === 'general_work_safe') { %>
+        <fieldset>
+          <legend>Required supplemental permits</legend>
+          <p class="muted">Select all permits that must be completed before this General Work Safe permit can be approved.</p>
+          <div class="form-stack">
+            <% supplementalPermitTypes.forEach(type => { %>
+              <label class="row gap" style="align-items:center;">
+                <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
+                <span><%= permitTypeLabels[type] %></span>
+              </label>
+            <% }) %>
+          </div>
+        </fieldset>
+      <% } %>
+
       <div class="row gap wrap">
         <button type="submit" class="button primary">Save Permit</button>
         <a class="button ghost" href="<%= permit ? '/permits/' + permit.id : '/permits' %>">Cancel</a>
