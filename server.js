@@ -674,8 +674,16 @@ function resolveLogoPath() {
   return null;
 }
 
-function drawFooter(_doc, _generatedAt) {
-  // Footer intentionally disabled to avoid trailing blank-page artifacts.
+function drawFooter(doc, generatedAt) {
+  const range = doc.bufferedPageRange();
+  for (let i = 0; i < range.count; i += 1) {
+    doc.switchToPage(range.start + i);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    doc.font('Helvetica').fontSize(8).fillColor(BRAND.muted)
+      .text(`Generated ${generatedAt}`, 50, pageHeight - 28, { width: pageWidth - 100, align: 'left' })
+      .text(`Page ${i + 1} of ${range.count}`, 50, pageHeight - 28, { width: pageWidth - 100, align: 'right' });
+  }
 }
 
 function ensurePdfSpace(doc, needed = 40) {
@@ -742,17 +750,19 @@ function renderPermitFieldsPdf(doc, permit) {
 }
 
 function generatePermitPdf(res, permit) {
-  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
   const generatedAt = new Date().toLocaleString();
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="permit-${permit.id}.pdf"`);
-  doc.pipe(res);
-
-  drawHeader(doc, `permit-${permit.id}.pdf`);
-  const blockY = doc.y;
-  doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
   const permitFields = parsePermitFieldsJson(permit.permit_fields_json);
   const permitNo = permitFields.general_permit_no || `Permit-${permit.id}`;
+  const safeFileBase = String(permitNo).replace(/[^a-zA-Z0-9-_]/g, '_');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFileBase}.pdf"`);
+  doc.pipe(res);
+
+  drawHeader(doc, `${safeFileBase}.pdf`);
+  const blockY = doc.y;
+  doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
 
   doc.fillColor(BRAND.primaryDark).font('Helvetica-Bold').fontSize(18).text(permit.title || 'Untitled permit', 64, blockY + 14, { width: 465 });
   doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Permit No: ${permitNo} • Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 46, { width: 465 });
