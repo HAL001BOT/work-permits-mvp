@@ -129,19 +129,17 @@
     });
 
     const query = new URLSearchParams(location.search);
-    const fileParam = query.get('file');
-    if (fileParam) {
-      fetch(fileParam)
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.arrayBuffer();
-        })
-        .then(buf => {
-          const loader = new STLLoader();
-          loadGeometry(loader.parse(buf), fileParam);
-        })
-        .catch(err => statusEl.textContent = `Could not auto-load '${fileParam}': ${err.message}`);
-    }
+    const fileParam = query.get('file') || './pi5_min_case_preloaded.stl';
+    fetch(fileParam)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then(buf => {
+        const loader = new STLLoader();
+        loadGeometry(loader.parse(buf), fileParam);
+      })
+      .catch(err => statusEl.textContent = `Could not auto-load '${fileParam}': ${err.message}`);
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
