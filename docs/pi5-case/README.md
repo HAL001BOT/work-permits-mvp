@@ -26,3 +26,14 @@ Open in OpenSCAD and export each part:
 - This is tuned for a clean/minimal shell with practical clearances.
 - If your printer runs tight/loose, adjust `tol` in the SCAD.
 - If port fit needs tweaking, adjust the cutout modules near the bottom of the file.
+
+## Web 3D viewer (GitHub Pages)
+
+A basic STL viewer is included at:
+
+- `docs/pi5-case/viewer.html`
+
+Usage:
+
+- Open the page and upload/drop an `.stl` file, or
+- Auto-load from URL query: `viewer.html?file=path/to/model.stl`
