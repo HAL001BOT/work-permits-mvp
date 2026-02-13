@@ -5,21 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pi 5 Case STL Viewer</title>
   <style>
-    :root { color-scheme: dark; }
-    body { margin: 0; font-family: Inter, system-ui, Arial, sans-serif; background:#0b1020; color:#e5e7eb; }
-    #ui {
-      position: fixed; top: 12px; left: 12px; right: 12px; z-index: 10;
-      display:flex; gap:10px; align-items:center; flex-wrap: wrap;
-      background: rgba(17,24,39,.85); border:1px solid #334155; border-radius:12px; padding:10px;
-      backdrop-filter: blur(6px);
-    }
-    input, button {
-      background:#111827; color:#e5e7eb; border:1px solid #475569; border-radius:8px; padding:8px 10px;
-    }
-    button { cursor:pointer; }
-    button:hover { background:#1f2937; }
-    #status { font-size: 13px; color:#93c5fd; }
-    #canvasWrap { position: fixed; inset: 0; }
+    body { margin:0; font-family: Arial, sans-serif; background:#0b1020; color:#e5e7eb; }
+    #ui { position:fixed; top:10px; left:10px; right:10px; z-index:10; background:rgba(17,24,39,.9); border:1px solid #334155; border-radius:10px; padding:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    input,button { background:#111827; color:#e5e7eb; border:1px solid #475569; border-radius:8px; padding:7px 10px; }
+    #status { font-size:13px; color:#93c5fd; }
+    #viewer { position:fixed; inset:0; }
+    #fallback { position:fixed; bottom:12px; left:12px; right:12px; font-size:12px; color:#cbd5e1; background:rgba(2,6,23,.7); padding:8px; border-radius:8px; }
     a { color:#93c5fd; }
   </style>
 </head>
@@ -27,141 +18,93 @@
   <div id="ui">
     <strong>Pi 5 Case Viewer</strong>
     <input id="file" type="file" accept=".stl" />
-    <button id="fit">Fit View</button>
-    <button id="wire">Toggle Wireframe</button>
-    <span id="status">Drop/select an STL file to preview.</span>
-    <span style="font-size:12px;color:#94a3b8;">Tip: add <code>?file=path/to/model.stl</code> to auto-load.</span>
+    <button id="fit">Fit</button>
+    <button id="wire">Wireframe</button>
+    <span id="status">Loading preloaded model...</span>
   </div>
-  <div id="canvasWrap"></div>
+  <div id="viewer"></div>
+  <div id="fallback">If this appears blank in Telegram in-app browser, open this link in Chrome/Safari: <a href="https://hal001bot.github.io/work-permits-mvp/pi5-case/viewer.html" target="_blank">viewer.html</a></div>
 
-  <script type="module">
-    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-    import { STLLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/STLLoader.js';
-
-    const wrap = document.getElementById('canvasWrap');
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/STLLoader.js"></script>
+  <script>
+  (function(){
     const statusEl = document.getElementById('status');
     const fileInput = document.getElementById('file');
     const fitBtn = document.getElementById('fit');
     const wireBtn = document.getElementById('wire');
+    const container = document.getElementById('viewer');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b1020);
-
-    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 5000);
-    camera.position.set(160, 120, 160);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 5000);
+    camera.position.set(180,130,180);
+    const renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    wrap.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 20, 0);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1e293b, 1.1);
-    scene.add(hemi);
-
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-    dir.position.set(180, 220, 140);
-    scene.add(dir);
-
-    const grid = new THREE.GridHelper(320, 32, 0x334155, 0x1f2937);
-    scene.add(grid);
-
-    const axes = new THREE.AxesHelper(60);
-    scene.add(axes);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x1e293b, 1.2));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(200,220,160); scene.add(dl);
+    scene.add(new THREE.GridHelper(320, 32, 0x334155, 0x1f2937));
 
     let mesh = null;
-    let wireframe = false;
+    let wire = false;
 
-    function fitToObject(object) {
-      const box = new THREE.Box3().setFromObject(object);
+    function fit(obj){
+      const box = new THREE.Box3().setFromObject(obj);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z) || 1;
-      const fov = camera.fov * (Math.PI / 180);
-      const distance = (maxDim / (2 * Math.tan(fov / 2))) * 1.7;
-
-      camera.position.set(center.x + distance, center.y + distance * 0.7, center.z + distance);
+      const maxDim = Math.max(size.x,size.y,size.z) || 1;
+      const dist = (maxDim/(2*Math.tan((camera.fov*Math.PI/180)/2))) * 1.7;
+      camera.position.set(center.x+dist, center.y+dist*0.7, center.z+dist);
       controls.target.copy(center);
       controls.update();
     }
 
-    function loadGeometry(geometry, label = 'model') {
-      geometry.computeVertexNormals();
-      geometry.center();
-
-      if (mesh) {
-        scene.remove(mesh);
-        mesh.geometry.dispose();
-        mesh.material.dispose();
-      }
-
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x93c5fd,
-        roughness: 0.45,
-        metalness: 0.05,
-        wireframe,
-      });
-
-      mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+    function setGeom(geom, name){
+      geom.computeVertexNormals();
+      geom.center();
+      if(mesh){ scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
+      mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0x93c5fd, roughness:0.45, metalness:0.05, wireframe:wire}));
       scene.add(mesh);
-      fitToObject(mesh);
-      statusEl.textContent = `Loaded: ${label}`;
+      fit(mesh);
+      statusEl.textContent = 'Loaded: ' + name;
     }
 
-    fileInput.addEventListener('change', async (e) => {
-      const f = e.target.files?.[0];
-      if (!f) return;
+    function loadFromUrl(url){
+      fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
+      .then(buf=>{
+        const loader = new THREE.STLLoader();
+        setGeom(loader.parse(buf), url);
+      })
+      .catch(e=> statusEl.textContent = "Load failed: " + e.message);
+    }
+
+    fileInput.addEventListener('change', async (e)=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return;
       const buf = await f.arrayBuffer();
-      const loader = new STLLoader();
-      loadGeometry(loader.parse(buf), f.name);
+      const loader = new THREE.STLLoader();
+      setGeom(loader.parse(buf), f.name);
     });
 
-    fitBtn.addEventListener('click', () => { if (mesh) fitToObject(mesh); });
-    wireBtn.addEventListener('click', () => {
-      wireframe = !wireframe;
-      if (mesh) mesh.material.wireframe = wireframe;
-    });
+    fitBtn.onclick = ()=> mesh && fit(mesh);
+    wireBtn.onclick = ()=>{ wire=!wire; if(mesh) mesh.material.wireframe=wire; };
 
-    const query = new URLSearchParams(location.search);
-    const fileParam = query.get('file') || './pi5_min_case_preloaded.stl';
-    fetch(fileParam)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      })
-      .then(buf => {
-        const loader = new STLLoader();
-        loadGeometry(loader.parse(buf), fileParam);
-      })
-      .catch(err => statusEl.textContent = `Could not auto-load '${fileParam}': ${err.message}`);
+    const p = new URLSearchParams(location.search).get('file') || './pi5_min_case_preloaded.stl';
+    loadFromUrl(p);
 
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+    window.addEventListener('resize', ()=>{
+      camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    renderer.domElement.addEventListener('dragover', (e) => e.preventDefault());
-    renderer.domElement.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      const f = e.dataTransfer?.files?.[0];
-      if (!f || !f.name.toLowerCase().endsWith('.stl')) return;
-      const buf = await f.arrayBuffer();
-      const loader = new STLLoader();
-      loadGeometry(loader.parse(buf), f.name);
-    });
-
-    (function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    })();
+    (function anim(){ requestAnimationFrame(anim); controls.update(); renderer.render(scene,camera); })();
+  })();
   </script>
 </body>
 </html>
