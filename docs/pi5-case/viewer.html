@@ -3,27 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pi 5 Case STL Viewer</title>
+  <title>Pi 5 Case Model</title>
   <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#0b1020; color:#e5e7eb; }
-    #ui { position:fixed; top:10px; left:10px; right:10px; z-index:10; background:rgba(17,24,39,.9); border:1px solid #334155; border-radius:10px; padding:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    input,button { background:#111827; color:#e5e7eb; border:1px solid #475569; border-radius:8px; padding:7px 10px; }
-    #status { font-size:13px; color:#93c5fd; }
+    body { margin:0; background:#0b1020; color:#e5e7eb; font-family:Arial,sans-serif; }
+    #title { position:fixed; top:10px; left:10px; z-index:10; background:rgba(17,24,39,.85); border:1px solid #334155; border-radius:10px; padding:8px 10px; font-size:14px; }
+    #status { color:#93c5fd; margin-left:8px; }
     #viewer { position:fixed; inset:0; }
-    #fallback { position:fixed; bottom:12px; left:12px; right:12px; font-size:12px; color:#cbd5e1; background:rgba(2,6,23,.7); padding:8px; border-radius:8px; }
-    a { color:#93c5fd; }
   </style>
 </head>
 <body>
-  <div id="ui">
-    <strong>Pi 5 Case Viewer</strong>
-    <input id="file" type="file" accept=".stl" />
-    <button id="fit">Fit</button>
-    <button id="wire">Wireframe</button>
-    <span id="status">Loading preloaded model...</span>
-  </div>
+  <div id="title">Raspberry Pi 5 minimal case (preloaded)<span id="status"> loading...</span></div>
   <div id="viewer"></div>
-  <div id="fallback">If this appears blank in Telegram in-app browser, open this link in Chrome/Safari: <a href="https://hal001bot.github.io/work-permits-mvp/pi5-case/viewer.html" target="_blank">viewer.html</a></div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
@@ -31,28 +21,27 @@
   <script>
   (function(){
     const statusEl = document.getElementById('status');
-    const fileInput = document.getElementById('file');
-    const fitBtn = document.getElementById('fit');
-    const wireBtn = document.getElementById('wire');
     const container = document.getElementById('viewer');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b1020);
+
     const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 5000);
     camera.position.set(180,130,180);
+
     const renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     container.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0x1e293b, 1.2));
-    const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(200,220,160); scene.add(dl);
+    const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+    dl.position.set(200,220,160);
+    scene.add(dl);
     scene.add(new THREE.GridHelper(320, 32, 0x334155, 0x1f2937));
-
-    let mesh = null;
-    let wire = false;
 
     function fit(obj){
       const box = new THREE.Box3().setFromObject(obj);
@@ -65,37 +54,19 @@
       controls.update();
     }
 
-    function setGeom(geom, name){
-      geom.computeVertexNormals();
-      geom.center();
-      if(mesh){ scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose(); }
-      mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0x93c5fd, roughness:0.45, metalness:0.05, wireframe:wire}));
-      scene.add(mesh);
-      fit(mesh);
-      statusEl.textContent = 'Loaded: ' + name;
-    }
-
-    function loadFromUrl(url){
-      fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
-      .then(buf=>{
+    fetch('./pi5_min_case_preloaded.stl')
+      .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
+      .then(buf => {
         const loader = new THREE.STLLoader();
-        setGeom(loader.parse(buf), url);
+        const geom = loader.parse(buf);
+        geom.computeVertexNormals();
+        geom.center();
+        const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0x93c5fd, roughness:0.45, metalness:0.05}));
+        scene.add(mesh);
+        fit(mesh);
+        statusEl.textContent = ' loaded';
       })
-      .catch(e=> statusEl.textContent = "Load failed: " + e.message);
-    }
-
-    fileInput.addEventListener('change', async (e)=>{
-      const f = e.target.files && e.target.files[0]; if(!f) return;
-      const buf = await f.arrayBuffer();
-      const loader = new THREE.STLLoader();
-      setGeom(loader.parse(buf), f.name);
-    });
-
-    fitBtn.onclick = ()=> mesh && fit(mesh);
-    wireBtn.onclick = ()=>{ wire=!wire; if(mesh) mesh.material.wireframe=wire; };
-
-    const p = new URLSearchParams(location.search).get('file') || './pi5_min_case_preloaded.stl';
-    loadFromUrl(p);
+      .catch(e => statusEl.textContent = ' failed: ' + e.message);
 
     window.addEventListener('resize', ()=>{
       camera.aspect = window.innerWidth/window.innerHeight;
