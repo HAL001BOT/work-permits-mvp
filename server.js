@@ -754,7 +754,7 @@ function drawHeader(doc, title, subline) {
 
   const logoPath = resolveLogoPath();
   if (logoPath) {
-    try { doc.image(logoPath, doc.page.width - 120, startY - 2, { fit: [68, 68] }); } catch (_err) { }
+    try { doc.image(logoPath, doc.page.width - 150, startY - 10, { fit: [90, 90] }); } catch (_err) { }
   }
 
   const textX = 50;
