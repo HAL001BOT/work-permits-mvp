@@ -820,8 +820,9 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
 
   drawHeader(doc, 'General safe work permit', permitNo);
   const blockY = doc.y;
-  const blockHeight = 150;
-  doc.roundedRect(50, blockY, 495, blockHeight, 12).fillAndStroke('#ffffff', BRAND.border);
+  const infoBlockTop = blockY;
+  const infoBlockHeight = 135;
+  doc.roundedRect(50, infoBlockTop, 495, infoBlockHeight, 12).fillAndStroke('#ffffff', BRAND.border);
 
   const infoX = 64;
   const infoTop = blockY + 12;
@@ -844,7 +845,7 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
     detailY += 14;
   });
 
-  doc.y = blockY + blockHeight + 20;
+  doc.y = infoBlockTop + infoBlockHeight + 20;
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
   if (permit.signature_text) doc.text(`Signature: ${permit.signature_text}`);
 
