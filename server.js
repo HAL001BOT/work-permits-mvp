@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const multer = require('multer');
 const PDFDocument = require('pdfkit');
+const puppeteer = require('puppeteer');
 const { db, migrate } = require('./db');
 
 migrate();
@@ -15,6 +16,7 @@ migrate();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === 'production';
+const PDF_RENDER_BASE_URL = process.env.PDF_RENDER_BASE_URL || `http://localhost:${PORT}`;
 const PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{12,}$/;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
@@ -805,12 +807,12 @@ function renderPermitFieldsPdf(doc, permit) {
   });
 }
 
-function generatePermitPdf(res, permit) {
+function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
   const doc = new PDFDocument({ margin: 50, size: 'A4' });
   const generatedAt = new Date().toLocaleString();
   const permitFields = parsePermitFieldsJson(permit.permit_fields_json);
   const permitNo = permitFields.general_permit_no || `Permit-${permit.id}`;
-  const safeFileBase = String(permitNo).replace(/[^a-zA-Z0-9-_]/g, '_');
+  const safeFileBase = safeFileBaseOverride || String(permitNo).replace(/[^a-zA-Z0-9-_]/g, '_');
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${safeFileBase}.pdf"`);
@@ -837,6 +839,89 @@ function generatePermitPdf(res, permit) {
   renderPermitFieldsPdf(doc, permit);
 
   doc.end();
+}
+
+function buildPermitDetailViewLocals(req, permit, options = {}) {
+  const recentAudit = db
+    .prepare(
+      `SELECT a.changed_at, a.action, u.username FROM permit_audit a JOIN users u ON u.id = a.changed_by WHERE a.permit_id = ? ORDER BY a.changed_at DESC LIMIT 7`
+    )
+    .all(permit.id);
+
+  const attachments = db
+    .prepare(
+      `SELECT pa.*, u.username AS uploaded_by_name FROM permit_attachments pa JOIN users u ON u.id = pa.uploaded_by WHERE pa.permit_id = ? ORDER BY pa.created_at DESC`
+    )
+    .all(permit.id);
+
+  const requiredPermitTypes = parseRequiredPermitsJson(permit.required_permits_json);
+  const childPermits = getChildPermits(permit.id);
+  const permitFieldSchema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
+  const permitFieldValues = parsePermitFieldsJson(permit.permit_fields_json);
+
+  const permissions = {
+    canEdit: canEditFields(req.session.user, permit),
+    canDeletePermit: canDeletePermit(req.session.user),
+    canUpload: canEditFields(req.session.user, permit) || hasAnyRole(req.session.user, [ROLES.ADMIN, ROLES.SUPERVISOR]),
+    canDeleteAttachment: canDeleteAttachment(req.session.user),
+    transitions: transitionActions(req.session.user, permit),
+  };
+
+  return {
+    permit,
+    recentAudit,
+    attachments,
+    workflowError: options.includeWorkflowError ? req.query.workflowError || null : null,
+    permitTypeLabels: PERMIT_TYPE_LABELS,
+    requiredPermitTypes,
+    childPermits,
+    permitFieldSchema,
+    permitFieldValues,
+    permissions,
+    user: req.session.user || null,
+  };
+}
+
+function renderPermitDetailHtml(req, permit) {
+  const locals = buildPermitDetailViewLocals(req, permit, { includeWorkflowError: false });
+  return new Promise((resolve, reject) => {
+    app.render('permit-detail', locals, (err, html) => {
+      if (err) return reject(err);
+      resolve(html);
+    });
+  });
+}
+
+async function generatePermitPdf(req, res, permit) {
+  const permitFields = parsePermitFieldsJson(permit.permit_fields_json);
+  const permitNo = permitFields.general_permit_no || `Permit-${permit.id}`;
+  const safeFileBase = String(permitNo).replace(/[^a-zA-Z0-9-_]/g, '_');
+
+  const html = await renderPermitDetailHtml(req, permit);
+  let browser;
+  try {
+    browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 800 });
+    await page.setContent(html, { waitUntil: 'networkidle0', baseURL: PDF_RENDER_BASE_URL });
+    await page.emulateMediaType('screen');
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '16mm', bottom: '16mm', left: '16mm', right: '16mm' },
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileBase}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Failed to render permit PDF via Puppeteer, falling back to PDFKit:', err);
+    if (!res.headersSent) {
+      generatePermitPdfLegacy(res, permit, safeFileBase);
+    }
+  } finally {
+    if (browser) await browser.close();
+  }
 }
 
 app.get('/', requireAuth, (_req, res) => res.redirect('/permits'));
@@ -1351,41 +1436,8 @@ app.get('/permits/:id(\\d+)', requireAuth, (req, res) => {
   const permit = getPermitById(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
 
-  const recentAudit = db
-    .prepare(
-      `SELECT a.changed_at, a.action, u.username FROM permit_audit a JOIN users u ON u.id = a.changed_by WHERE a.permit_id = ? ORDER BY a.changed_at DESC LIMIT 7`
-    )
-    .all(req.params.id);
-
-  const attachments = db
-    .prepare(
-      `SELECT pa.*, u.username AS uploaded_by_name FROM permit_attachments pa JOIN users u ON u.id = pa.uploaded_by WHERE pa.permit_id = ? ORDER BY pa.created_at DESC`
-    )
-    .all(req.params.id);
-
-  const requiredPermitTypes = parseRequiredPermitsJson(permit.required_permits_json);
-  const childPermits = getChildPermits(permit.id);
-  const permitFieldSchema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
-  const permitFieldValues = parsePermitFieldsJson(permit.permit_fields_json);
-
-  res.render('permit-detail', {
-    permit,
-    recentAudit,
-    attachments,
-    workflowError: req.query.workflowError || null,
-    permitTypeLabels: PERMIT_TYPE_LABELS,
-    requiredPermitTypes,
-    childPermits,
-    permitFieldSchema,
-    permitFieldValues,
-    permissions: {
-      canEdit: canEditFields(req.session.user, permit),
-      canDeletePermit: canDeletePermit(req.session.user),
-      canUpload: canEditFields(req.session.user, permit) || hasAnyRole(req.session.user, [ROLES.ADMIN, ROLES.SUPERVISOR]),
-      canDeleteAttachment: canDeleteAttachment(req.session.user),
-      transitions: transitionActions(req.session.user, permit),
-    },
-  });
+  const locals = buildPermitDetailViewLocals(req, permit, { includeWorkflowError: true });
+  res.render('permit-detail', locals);
 });
 
 app.post('/permits/:id(\\d+)/attachments', requireAuth, upload.single('attachment'), (req, res) => {
@@ -1474,10 +1526,14 @@ app.get('/permits/:id(\\d+)/audit', requireAuth, (req, res) => {
   });
 });
 
-app.get('/permits/:id(\\d+)/export.pdf', requireAuth, (req, res) => {
-  const permit = getPermitById(req.params.id);
-  if (!permit) return res.status(404).send('Permit not found');
-  generatePermitPdf(res, permit);
+app.get('/permits/:id(\\d+)/export.pdf', requireAuth, async (req, res, next) => {
+  try {
+    const permit = getPermitById(req.params.id);
+    if (!permit) return res.status(404).send('Permit not found');
+    await generatePermitPdf(req, res, permit);
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.get('/permits/export.csv', requireAuth, (req, res) => {

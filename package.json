@@ -20,7 +20,8 @@
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
     "multer": "^2.0.2",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "puppeteer": "^24.37.3"
   },
   "devDependencies": {
     "supertest": "^7.1.1"
