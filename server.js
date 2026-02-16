@@ -820,14 +820,15 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
 
   drawHeader(doc, 'General safe work permit', permitNo);
   const blockY = doc.y;
-  doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
+  const blockHeight = 150;
+  doc.roundedRect(50, blockY, 495, blockHeight, 12).fillAndStroke('#ffffff', BRAND.border);
 
   const infoX = 64;
   const infoTop = blockY + 12;
   doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, infoX, infoTop, { width: 425 });
   doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', infoX, infoTop + 18, { width: 425 });
 
-  doc.font('Helvetica').fontSize(10).fillColor(BRAND.muted);
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9);
   const createdByDisplay = permit.created_by_full_name || permit.created_by_name;
   const updatedByDisplay = permit.updated_by_full_name ? `${permit.updated_by_full_name}${permit.updated_by_position ? ` (${permit.updated_by_position})` : ''}` : permit.updated_by_name;
   const infoLines = [
@@ -843,7 +844,7 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
     detailY += 14;
   });
 
-  doc.y = blockY + 110;
+  doc.y = blockY + blockHeight + 20;
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
   if (permit.signature_text) doc.text(`Signature: ${permit.signature_text}`);
 
