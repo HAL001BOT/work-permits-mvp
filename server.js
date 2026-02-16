@@ -822,17 +822,28 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
   const blockY = doc.y;
   doc.roundedRect(50, blockY, 495, 92, 12).fillAndStroke('#ffffff', BRAND.border);
 
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, 64, blockY + 34, { width: 465 });
-  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', 64, blockY + 52, { width: 465 });
-  doc.y = blockY + 104;
+  const infoX = 64;
+  const infoTop = blockY + 16;
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(10).text(`Status: ${formatStatusLabel(permit.status)} • Revision: ${permit.revision}`, infoX, infoTop, { width: 425 });
+  doc.fillColor(BRAND.muted).font('Helvetica').fontSize(9).text('Permit & Safety Documentation', infoX, infoTop + 18, { width: 425 });
+
   doc.font('Helvetica').fontSize(11).fillColor('#0f172a');
-  doc.text(`Site: ${permit.site || '-'}`);
-  doc.text(`Permit End Date: ${permit.permit_date || '-'}`);
   const createdByDisplay = permit.created_by_full_name || permit.created_by_name;
   const updatedByDisplay = permit.updated_by_full_name ? `${permit.updated_by_full_name}${permit.updated_by_position ? ` (${permit.updated_by_position})` : ''}` : permit.updated_by_name;
-  doc.text(`Created By: ${createdByDisplay}`);
-  doc.text(`Updated By: ${updatedByDisplay}`);
-  doc.text(`Locked: ${permit.is_locked ? 'Yes' : 'No'}`);
+  const infoLines = [
+    `Site: ${permit.site || '-'}`,
+    `Permit End Date: ${permit.permit_date || '-'}`,
+    `Created By: ${createdByDisplay}`,
+    `Updated By: ${updatedByDisplay}`,
+    `Locked: ${permit.is_locked ? 'Yes' : 'No'}`,
+  ];
+  let detailY = infoTop + 34;
+  infoLines.forEach((line) => {
+    doc.text(line, infoX, detailY, { width: 425 });
+    detailY += 14;
+  });
+
+  doc.y = blockY + 110;
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
   if (permit.signature_text) doc.text(`Signature: ${permit.signature_text}`);
 
