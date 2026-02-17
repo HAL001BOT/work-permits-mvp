@@ -205,12 +205,15 @@
         const body = section.querySelector('.section-body');
         const icon = btn.querySelector('.toggle-icon');
         const setState = (expanded) => {
-          btn.setAttribute('aria-expanded', String(expanded));
+          btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
           if (icon) icon.textContent = expanded ? '▾' : '▸';
           if (body) body.hidden = !expanded;
         };
         setState(true);
-        btn.addEventListener('click', () => { setState(btn.getAttribute('aria-expanded') !== 'true'); });
+        btn.addEventListener('click', () => {
+          const expanded = btn.getAttribute('aria-expanded') === 'true';
+          setState(!expanded);
+        });
       });
 
       computeRequiredSummary();
