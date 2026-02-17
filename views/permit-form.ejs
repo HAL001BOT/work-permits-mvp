@@ -62,6 +62,7 @@
                      const rawValue = fieldValues[f.key];
                      const value = rawValue !== undefined && rawValue !== null ? rawValue : '';
                      const inputId = `pf__${f.key}`;
+                     const inputName = f.persist === 'column' ? f.key : `pf__${f.key}`;
                      const baseRequired = f.required ? '1' : '0';
                      const labelAttrs = f.dependsOn ? ` class="dependent-field" data-dependent-target="${inputId}"` : '';
                      const controlTargets = f.key === 'contractor_company_enabled' ? 'pf__contractor_company pf__contractor_lead' : (f.key === 'project_number_needed' ? 'pf__project_number' : '');
@@ -88,11 +89,11 @@
                         <% const dataBaseRequiredAttr = `data-base-required="${baseRequired}"`; %>
                         <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                         <% if (f.type === 'textarea') { %>
-                          <textarea name="pf__<%= f.key %>" rows="4" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %>><%= value %></textarea>
+                          <textarea name="<%= inputName %>" rows="4" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %>><%= value %></textarea>
                         <% } else if (f.type === 'checkbox') { %>
                           <span class="check-option" style="margin-top:6px;">
-                            <input id="<%= inputId %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= (Number(value) || f.forcedTrue) ? 'checked' : '' %> <%= (sectionLocked || f.forcedTrue) ? 'disabled' : '' %> />
-                            <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
+                            <input id="<%= inputId %>" type="checkbox" name="<%= inputName %>" value="1" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= (Number(value) || f.forcedTrue) ? 'checked' : '' %> <%= (sectionLocked || f.forcedTrue) ? 'disabled' : '' %> />
+                            <% if (f.forcedTrue) { %><input type="hidden" name="<%= inputName %>" value="1" /><% } %>
                             <span><%= f.label %></span>
                             <% if (f.key === 'haz_mobile_equipment') { %>
                               <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
@@ -100,7 +101,7 @@
                             <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
                           </span>
                         <% } else if (f.type === 'select') { %>
-                          <select name="pf__<%= f.key %>" id="<%= inputId %>" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %> >
+                          <select name="<%= inputName %>" id="<%= inputId %>" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %> >
                             <option value="">Select...</option>
                             <% availableOptions.forEach(opt => { %>
                               <% const optValue = typeof opt === 'string' ? opt : opt.value; %>
@@ -109,7 +110,7 @@
                             <% }) %>
                           </select>
                         <% } else { %>
-                          <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" id="<%= inputId %>" name="pf__<%= f.key %>" value="<%= value %>" <%= f.readOnly ? 'readonly' : '' %> data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %> />
+                          <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" id="<%= inputId %>" name="<%= inputName %>" value="<%= value %>" <%= f.readOnly ? 'readonly' : '' %> data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %> />
                         <% } %>
                         <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
                       </label>
