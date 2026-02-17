@@ -76,6 +76,8 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'general_permit_no', label: 'General Work Permit Number', type: 'text', readOnly: true, required: true, section: 'General Information' },
     { key: 'start_time', label: 'Start Time', type: 'time', required: true, section: 'General Information' },
     { key: 'start_date', label: 'Start Date', type: 'date', required: true, section: 'General Information' },
+    { key: 'permit_date', label: 'Permit End Date', type: 'date', required: true, section: 'General Information', persist: 'column' },
+    { key: 'site', label: 'Site', type: 'text', required: true, section: 'General Information', readOnly: true, persist: 'column', defaultValue: 'Cleburne' },
     { key: 'building_location', label: 'Building / Location', type: 'select', options: ['Manufacturing building', 'Production building', 'Tanks'], required: true, section: 'General Information' },
     { key: 'contractor_company', label: 'Contractor Company', type: 'text', required: true, section: 'General Information' },
     { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C', 'D'], required: true, section: 'General Information' },
@@ -368,6 +370,24 @@ function fieldSchemaForType(type) {
   return PERMIT_FIELD_SCHEMAS[type] || [];
 }
 
+function buildFieldValuesWithColumns(schema, baseValues, source = {}) {
+  const values = { ...baseValues };
+  for (const field of schema) {
+    const hasValue = values[field.key] !== undefined && values[field.key] !== null;
+    if (field.persist === 'column') {
+      const fromSource = source[field.key];
+      if (fromSource !== undefined && fromSource !== null) {
+        values[field.key] = fromSource;
+      } else if (!hasValue && field.defaultValue !== undefined) {
+        values[field.key] = field.defaultValue;
+      }
+    } else if (!hasValue && field.defaultValue !== undefined) {
+      values[field.key] = field.defaultValue;
+    }
+  }
+  return values;
+}
+
 function parsePermitFieldsJson(value) {
   if (!value) return {};
   try {
@@ -382,6 +402,7 @@ function extractPermitFieldsFromBody(body, permitType) {
   const schema = fieldSchemaForType(permitType);
   const fields = {};
   for (const f of schema) {
+    if (f.persist === 'column') continue;
     const key = `pf__${f.key}`;
     if (f.type === 'checkbox') fields[f.key] = f.forcedTrue ? 1 : (body[key] ? 1 : 0);
     else fields[f.key] = String(body[key] || '').trim();
@@ -425,6 +446,7 @@ function validatePermitFields(permitType, permitFields) {
   const fieldErrors = {};
   const schema = fieldSchemaForType(permitType);
   for (const f of schema) {
+    if (f.persist === 'column') continue;
     if (!f.required) continue;
     const val = permitFields[f.key];
     if (f.type === 'checkbox') {
@@ -870,7 +892,11 @@ function buildPermitDetailViewLocals(req, permit, options = {}) {
   const requiredPermitTypes = parseRequiredPermitsJson(permit.required_permits_json);
   const childPermits = getChildPermits(permit.id);
   const permitFieldSchema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
-  const permitFieldValues = parsePermitFieldsJson(permit.permit_fields_json);
+  const permitFieldValues = buildFieldValuesWithColumns(
+    permitFieldSchema,
+    parsePermitFieldsJson(permit.permit_fields_json),
+    { permit_date: permit.permit_date, site: permit.site }
+  );
 
   const permissions = {
     canEdit: canEditFields(req.session.user, permit),
@@ -1112,12 +1138,15 @@ app.get('/permits', requireAuth, (req, res) => {
 
 app.get('/permits/new', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
+  const schema = fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
+  const basePermit = { title: 'General safe work permit', site: 'Cleburne', permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, permit_date: '' };
+  const baseFieldValues = { general_permit_no: generateNextGswpTitle() };
   res.render('permit-form', {
-    permit: { title: 'General safe work permit', site: 'Cleburne', permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE },
+    permit: basePermit,
     action: '/permits',
     error: null,
-    permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
-    permitFieldValues: { general_permit_no: generateNextGswpTitle() },
+    permitFieldSchema: schema,
+    permitFieldValues: buildFieldValuesWithColumns(schema, baseFieldValues, basePermit),
     fieldErrors: {},
     supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
     permitTypeLabels: PERMIT_TYPE_LABELS,
@@ -1130,6 +1159,8 @@ app.post('/permits', requireAuth, (req, res) => {
   const title = 'General safe work permit';
   const site = 'Cleburne';
   const requiredPermits = normalizeRequiredPermits(req.body.required_permits);
+  const schema = fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
+  const hydrateFields = (base) => buildFieldValuesWithColumns(schema, base, { permit_date: permit_date || '', site });
   let permitFields = extractPermitFieldsFromBody(req.body, PERMIT_TYPES.GENERAL_WORK_SAFE);
   permitFields = mergePermitFieldsByRole({}, permitFields, PERMIT_TYPES.GENERAL_WORK_SAFE, req.session.user);
   permitFields.general_permit_no = generateNextGswpTitle();
@@ -1143,8 +1174,8 @@ app.post('/permits', requireAuth, (req, res) => {
       error: 'Permit end date is required.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
-      permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
-      permitFieldValues: permitFields,
+      permitFieldSchema: schema,
+      permitFieldValues: hydrateFields(permitFields),
       fieldErrors: {},
     });
   }
@@ -1156,8 +1187,8 @@ app.post('/permits', requireAuth, (req, res) => {
       error: 'Start date must be before or equal to permit end date.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
-      permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
-      permitFieldValues: permitFields,
+      permitFieldSchema: schema,
+      permitFieldValues: hydrateFields(permitFields),
       fieldErrors: { start_date: 'Start date must be on/before end date' },
     });
   }
@@ -1170,8 +1201,8 @@ app.post('/permits', requireAuth, (req, res) => {
       error: gswpValidation.message,
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
-      permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
-      permitFieldValues: permitFields,
+      permitFieldSchema: schema,
+      permitFieldValues: hydrateFields(permitFields),
       fieldErrors: gswpValidation.fieldErrors,
     });
   }
@@ -1203,8 +1234,8 @@ app.post('/permits', requireAuth, (req, res) => {
         error: 'Permit number conflict detected. Please save again.',
         supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
         permitTypeLabels: PERMIT_TYPE_LABELS,
-        permitFieldSchema: fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE),
-        permitFieldValues: { ...permitFields, general_permit_no: generateNextGswpTitle() },
+        permitFieldSchema: schema,
+        permitFieldValues: hydrateFields({ ...permitFields, general_permit_no: generateNextGswpTitle() }),
         fieldErrors: {},
       });
     }
@@ -1222,14 +1253,15 @@ app.get('/permits/:id(\\d+)/edit', requireAuth, (req, res) => {
   const permit = getPermitById(req.params.id);
   if (!permit) return res.status(404).send('Permit not found');
   if (!canEditFields(req.session.user, permit)) return res.status(403).send('Forbidden');
+  const schema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
   res.render('permit-form', {
     permit,
     action: `/permits/${permit.id}`,
     error: null,
     supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
     permitTypeLabels: PERMIT_TYPE_LABELS,
-    permitFieldSchema: fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE),
-    permitFieldValues: parsePermitFieldsJson(permit.permit_fields_json),
+    permitFieldSchema: schema,
+    permitFieldValues: buildFieldValuesWithColumns(schema, parsePermitFieldsJson(permit.permit_fields_json), { permit_date: permit.permit_date, site: permit.site }),
     fieldErrors: {},
   });
 });
@@ -1245,6 +1277,9 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   const site = permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? 'Cleburne' : (req.body.site || permit.site);
   const requiredPermits = isGeneralPermit(permit) ? normalizeRequiredPermits(req.body.required_permits) : [];
   const existingFields = parsePermitFieldsJson(permit.permit_fields_json);
+  const schema = fieldSchemaForType(permitType);
+  const fieldValuesSource = { permit_date: permit_date || permit.permit_date || '', site };
+  const hydrateFields = (base) => buildFieldValuesWithColumns(schema, base, fieldValuesSource);
   let permitFields = extractPermitFieldsFromBody(req.body, permitType);
   permitFields = mergePermitFieldsByRole(existingFields, permitFields, permitType, req.session.user);
   if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE) {
@@ -1259,8 +1294,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       error: 'Permit end date is required.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
-      permitFieldSchema: fieldSchemaForType(permitType),
-      permitFieldValues: permitFields,
+      permitFieldSchema: schema,
+      permitFieldValues: hydrateFields(permitFields),
       fieldErrors: {},
     });
   }
@@ -1273,8 +1308,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       error: 'Start date must be before or equal to permit end date.',
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
-      permitFieldSchema: fieldSchemaForType(permitType),
-      permitFieldValues: permitFields,
+      permitFieldSchema: schema,
+      permitFieldValues: hydrateFields(permitFields),
       fieldErrors: { start_date: 'Start date must be on/before end date' },
     });
   }
@@ -1287,8 +1322,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
       error: gswpValidation.message,
       supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
       permitTypeLabels: PERMIT_TYPE_LABELS,
-      permitFieldSchema: fieldSchemaForType(permitType),
-      permitFieldValues: permitFields,
+      permitFieldSchema: schema,
+      permitFieldValues: hydrateFields(permitFields),
       fieldErrors: gswpValidation.fieldErrors,
     });
   }
@@ -1307,8 +1342,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
         error: 'Permit number conflict detected. Please save again.',
         supplementalPermitTypes: SUPPLEMENTAL_PERMIT_TYPES,
         permitTypeLabels: PERMIT_TYPE_LABELS,
-        permitFieldSchema: fieldSchemaForType(permitType),
-        permitFieldValues: { ...permitFields, general_permit_no: generateNextGswpTitle() },
+        permitFieldSchema: schema,
+        permitFieldValues: hydrateFields({ ...permitFields, general_permit_no: generateNextGswpTitle() }),
         fieldErrors: {},
       });
     }

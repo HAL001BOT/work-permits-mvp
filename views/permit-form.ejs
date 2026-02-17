@@ -53,15 +53,19 @@
             <div class="section-body">
               <% if (sectionLocked) { %><p class="muted">Only supervisor/admin can edit this section.</p><% } %>
               <div class="form-stack">
-                <% fields.forEach(f => { %>
+                <% fields.forEach(f => {
+                     const rawValue = fieldValues[f.key];
+                     const hasValue = rawValue !== undefined && rawValue !== null;
+                     const value = hasValue ? rawValue : (f.defaultValue || '');
+                 %>
                   <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
                     <label>
                       <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
                       <% if (f.type === 'textarea') { %>
-                        <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %>><%= fieldValues[f.key] || '' %></textarea>
+                        <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %>><%= value %></textarea>
                       <% } else if (f.type === 'checkbox') { %>
                         <span class="check-option" style="margin-top:6px;">
-                          <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
+                          <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= (f.forcedTrue || Number(value)) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
                           <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
                           <span><%= f.label %></span>
                           <% if (f.key === 'haz_mobile_equipment') { %>
@@ -73,26 +77,13 @@
                         <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> >
                           <option value="">Select...</option>
                           <% (f.options || []).forEach(opt => { %>
-                            <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
+                            <option value="<%= opt %>" <%= String(value || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
                           <% }) %>
                         </select>
                       <% } else { %>
-                        <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> />
+                        <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= value %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> />
                       <% } %>
                       <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
-                    </label>
-                  <% } %>
-
-                  <% if (sectionName === 'General Information' && f.key === 'start_date') { %>
-                    <label>Permit End Date
-                      <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
-                    </label>
-                    <label>Site
-                      <% if (currentType === 'general_work_safe') { %>
-                        <input name="site" value="Cleburne" readonly />
-                      <% } else { %>
-                        <input name="site" value="<%= permit?.site || '' %>" />
-                      <% } %>
                     </label>
                   <% } %>
                 <% }) %>
@@ -209,7 +200,8 @@
           if (icon) icon.textContent = expanded ? '▾' : '▸';
           if (body) body.hidden = !expanded;
         };
-        setState(true);
+        const defaultExpanded = Boolean(permitId);
+        setState(defaultExpanded);
         btn.addEventListener('click', () => {
           const expanded = btn.getAttribute('aria-expanded') === 'true';
           setState(!expanded);
