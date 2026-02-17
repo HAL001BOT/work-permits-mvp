@@ -41,20 +41,32 @@
         <label>Position
           <input name="position" />
         </label>
-        <div class="row gap wrap"><button type="submit" class="button primary">Create User</button></div>
+        <div class="grid-form__actions">
+          <button type="submit" class="button primary">Create User</button>
+        </div>
       </form>
     </section>
 
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Full Name</th><th>Position</th><th>Created</th><th>Update Profile</th><th>Change Password</th></tr></thead>
+          <thead><tr><th>ID</th><th>Username</th><th>Current Role</th><th>Set Role</th><th>Full Name</th><th>Position</th><th>Created</th><th>Update Profile</th><th>Change Password</th></tr></thead>
           <tbody>
             <% users.forEach(u => { %>
               <tr>
                 <td><%= u.id %></td>
                 <td><%= u.username %></td>
                 <td><%= u.role %></td>
+                <td>
+                  <form method="post" action="/admin/users/<%= u.id %>/role" class="role-select-form">
+                    <select name="role" required>
+                      <% roles.forEach(roleOption => { %>
+                        <option value="<%= roleOption %>" <%= roleOption === u.role ? 'selected' : '' %>><%= roleOption %></option>
+                      <% }) %>
+                    </select>
+                    <button type="submit" class="button">Save</button>
+                  </form>
+                </td>
                 <td><%= u.full_name || '—' %></td>
                 <td><%= u.position || '—' %></td>
                 <td><%= u.created_at %></td>

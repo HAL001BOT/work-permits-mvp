@@ -1132,9 +1132,18 @@ app.post('/logout', requireAuth, (req, res) => req.session.destroy(() => res.red
 
 app.get('/admin/users', requireAuth, requireAdmin, (req, res) => {
   const users = db.prepare(`SELECT id, username, role, full_name, position, created_at FROM users ORDER BY created_at DESC`).all();
-  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : (req.query.profileUpdated ? 'User profile updated.' : null));
-  const error = req.query.pwerror ? 'Could not change password.' : (req.query.profileError ? 'Could not update user profile.' : null);
+  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : (req.query.profileUpdated ? 'User profile updated.' : (req.query.roleUpdated ? 'Role updated successfully.' : null)));
+  const error = req.query.pwerror ? 'Could not change password.' : (req.query.profileError ? 'Could not update user profile.' : (req.query.roleError ? 'Invalid role selection.' : null));
   res.render('admin-users', { users, error, success, roles: Object.values(ROLES) });
+});
+
+app.post('/admin/users/:id(\\d+)/role', requireAuth, requireAdmin, (req, res) => {
+  const role = String(req.body.role || '').trim();
+  if (!Object.values(ROLES).includes(role)) return res.status(400).redirect('/admin/users?roleError=1');
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).redirect('/admin/users?roleError=1');
+  db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
+  return res.redirect('/admin/users?roleUpdated=1');
 });
 
 app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {

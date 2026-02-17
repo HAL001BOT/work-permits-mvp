@@ -145,7 +145,37 @@ button:hover, .button:hover { background: #f3f4f6; }
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
-  align-items: end;
+  align-items: start;
+}
+.grid-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.grid-form input,
+.grid-form select {
+  width: 100%;
+  min-height: 38px;
+}
+.grid-form small.muted {
+  font-size: 12px;
+}
+.grid-form__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-start;
+}
+.role-select-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.role-select-form select {
+  min-width: 160px;
+}
+.role-select-form .button {
+  flex-shrink: 0;
+  padding: 6px 12px;
 }
 .field-half { flex: 1; min-width: 220px; }
 
