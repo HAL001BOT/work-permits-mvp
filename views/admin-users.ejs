@@ -13,7 +13,12 @@
         <h1>Manage Users</h1>
         <p class="muted">Admin-only user creation.</p>
       </div>
-      <a class="button ghost" href="/permits">Back to Dashboard</a>
+      <div class="row gap wrap">
+        <span class="badge">Signed in as <strong><%= user?.username || 'Unknown' %></strong> (<%= user?.role || 'requester' %>)</span>
+        <a class="button ghost" href="/profile">Change Password</a>
+        <a class="button ghost" href="/permits">Back to Dashboard</a>
+        <form method="post" action="/logout"><button type="submit" class="button ghost">Logout</button></form>
+      </div>
     </header>
 
     <% if (error) { %><p class="error"><%= error %></p><% } %>
@@ -50,7 +55,7 @@
     <section class="table-card card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Username</th><th>Current Role</th><th>Set Role</th><th>Full Name</th><th>Position</th><th>Created</th><th>Update Profile</th><th>Change Password</th></tr></thead>
+          <thead><tr><th>ID</th><th>Username</th><th>Current Role</th><th>Set Role</th><th>Current Group</th><th>Set Group</th><th>Full Name</th><th>Position</th><th>Created</th><th>Update Profile</th><th>Change Password</th></tr></thead>
           <tbody>
             <% users.forEach(u => { %>
               <tr>
@@ -65,6 +70,17 @@
                       <% }) %>
                     </select>
                     <button type="submit" class="button">Save</button>
+                  </form>
+                </td>
+                <td><%= u.group_name || '—' %></td>
+                <td>
+                  <form method="post" action="/admin/users/<%= u.id %>/group" class="group-select-form">
+                    <select name="group">
+                      <% groups.forEach(groupOption => { %>
+                        <option value="<%= groupOption %>" <%= groupOption === u.group_name ? 'selected' : '' %>><%= groupOption || 'None' %></option>
+                      <% }) %>
+                    </select>
+                    <button type="submit" class="button">Move</button>
                   </form>
                 </td>
                 <td><%= u.full_name || '—' %></td>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Profile</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header row wrap space-between gap">
+      <div>
+        <h1>My Profile</h1>
+        <p class="muted">Change your password anytime.</p>
+      </div>
+      <div class="row gap wrap">
+        <span class="badge">Signed in as <strong><%= user.username %></strong> (<%= user.role %>)</span>
+        <% if (user.role === 'admin') { %><a class="button" href="/admin/users">Manage Users</a><% } %>
+        <a class="button" href="/permits">Dashboard</a>
+        <form method="post" action="/logout"><button type="submit" class="button ghost">Logout</button></form>
+      </div>
+    </header>
+
+    <% if (error) { %><p class="error"><%= error %></p><% } %>
+    <% if (success) { %><p style="color:#166534;font-weight:600;"><%= success %></p><% } %>
+
+    <section class="card">
+      <h2 class="section-title">Change Password</h2>
+      <form method="post" action="/profile/password" class="grid-form">
+        <label>Current password
+          <input type="password" name="current_password" required minlength="12" />
+        </label>
+        <label>New password
+          <input type="password" name="new_password" required minlength="12" />
+          <small class="muted">Min 12 chars with uppercase, lowercase, number, and symbol.</small>
+        </label>
+        <label>Confirm new password
+          <input type="password" name="confirm_password" required minlength="12" />
+        </label>
+        <div class="grid-form__actions">
+          <button type="submit" class="button primary">Update Password</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

@@ -201,6 +201,7 @@ const PERMIT_FIELD_SCHEMAS = {
 const FIELD_EDITABLE_STATUSES = new Set(['draft', 'submitted']);
 const STAFF_GROUP_SUPERVISORS = 'supervisors';
 const STAFF_GROUP_OPERATORS = 'operators';
+const USER_GROUPS = ['', STAFF_GROUP_SUPERVISORS, STAFF_GROUP_OPERATORS];
 const DEFAULT_STAFF_PASSWORD = process.env.SEED_DEFAULT_PASS || 'permit123!';
 const STAFF_SEEDS = [
   { username: 'supervisor1', role: ROLES?.SUPERVISOR || 'supervisor', group_name: STAFF_GROUP_SUPERVISORS, full_name: 'Shift Supervisor 1', position: 'Supervisor' },
@@ -1130,11 +1131,34 @@ app.post('/login', (req, res) => {
 
 app.post('/logout', requireAuth, (req, res) => req.session.destroy(() => res.redirect('/login')));
 
+app.get('/profile', requireAuth, (req, res) => {
+  const success = req.query.changed ? 'Password updated successfully.' : null;
+  const errorCode = String(req.query.error || '').trim();
+  let error = null;
+  if (errorCode === 'invalid_current') error = 'Current password was incorrect.';
+  else if (errorCode === 'mismatch') error = 'New passwords do not match.';
+  else if (errorCode === 'weak') error = passwordRuleMessage();
+  else if (errorCode === 'missing') error = 'Please fill in all password fields.';
+  res.render('profile', { user: req.session.user, success, error });
+});
+
+app.post('/profile/password', requireAuth, (req, res) => {
+  const { current_password = '', new_password = '', confirm_password = '' } = req.body;
+  if (!current_password || !new_password || !confirm_password) return res.redirect('/profile?error=missing');
+  if (new_password !== confirm_password) return res.redirect('/profile?error=mismatch');
+  if (!validatePasswordStrength(String(new_password))) return res.redirect('/profile?error=weak');
+  const dbUser = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.session.user.id);
+  if (!dbUser || !bcrypt.compareSync(String(current_password), dbUser.password_hash)) return res.redirect('/profile?error=invalid_current');
+  const hash = bcrypt.hashSync(String(new_password), 12);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.session.user.id);
+  return res.redirect('/profile?changed=1');
+});
+
 app.get('/admin/users', requireAuth, requireAdmin, (req, res) => {
-  const users = db.prepare(`SELECT id, username, role, full_name, position, created_at FROM users ORDER BY created_at DESC`).all();
-  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : (req.query.profileUpdated ? 'User profile updated.' : (req.query.roleUpdated ? 'Role updated successfully.' : null)));
-  const error = req.query.pwerror ? 'Could not change password.' : (req.query.profileError ? 'Could not update user profile.' : (req.query.roleError ? 'Invalid role selection.' : null));
-  res.render('admin-users', { users, error, success, roles: Object.values(ROLES) });
+  const users = db.prepare(`SELECT id, username, role, full_name, position, created_at, group_name FROM users ORDER BY created_at DESC`).all();
+  const success = req.query.created ? 'User created successfully.' : (req.query.pwchanged ? 'Password changed successfully.' : (req.query.profileUpdated ? 'User profile updated.' : (req.query.roleUpdated ? 'Role updated successfully.' : (req.query.groupUpdated ? 'Group updated successfully.' : null))));
+  const error = req.query.pwerror ? 'Could not change password.' : (req.query.profileError ? 'Could not update user profile.' : (req.query.roleError ? 'Invalid role selection.' : (req.query.groupError ? 'Invalid group selection.' : null)));
+  res.render('admin-users', { users, error, success, roles: Object.values(ROLES), groups: USER_GROUPS, user: req.session.user });
 });
 
 app.post('/admin/users/:id(\\d+)/role', requireAuth, requireAdmin, (req, res) => {
@@ -1144,6 +1168,15 @@ app.post('/admin/users/:id(\\d+)/role', requireAuth, requireAdmin, (req, res) =>
   if (!user) return res.status(404).redirect('/admin/users?roleError=1');
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
   return res.redirect('/admin/users?roleUpdated=1');
+});
+
+app.post('/admin/users/:id(\\d+)/group', requireAuth, requireAdmin, (req, res) => {
+  const group = String(req.body.group || '').trim();
+  if (!USER_GROUPS.includes(group)) return res.status(400).redirect('/admin/users?groupError=1');
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).redirect('/admin/users?groupError=1');
+  db.prepare('UPDATE users SET group_name = ? WHERE id = ?').run(group, req.params.id);
+  return res.redirect('/admin/users?groupUpdated=1');
 });
 
 app.post('/admin/users', requireAuth, requireAdmin, (req, res) => {
