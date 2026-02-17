@@ -12,12 +12,14 @@ function buildRequiredFields() {
     pf__start_time: '08:00',
     pf__start_date: '2026-02-12',
     pf__building_location: 'Manufacturing building',
+    pf__contractor_company_enabled: '1',
     pf__contractor_company: 'Acme',
     pf__shift: 'A',
     pf__equipment: 'Pump 1',
     pf__contractor_lead: 'Lead A',
-    pf__shift_supervisor: 'Sup A',
+    pf__shift_supervisor: 'supervisor1',
     pf__work_order_number: 'WO-1',
+    pf__project_number_needed: '1',
     pf__project_number: 'PR-1',
     pf__confirm_no_other_permits: '1',
     pf__scope_of_work: 'Routine maintenance',
@@ -25,12 +27,13 @@ function buildRequiredFields() {
     pf__personnel_briefed_hazards: 'Yes',
     pf__needs_shutdown: 'No',
     pf__chemicals_cleared: 'Yes',
-    pf__team_member_signoffs: 'A 2026-02-12',
+    pf__team_member_signoffs: JSON.stringify([{ name: 'Admin User', date: '2026-02-12' }]),
     pf__team_leader_sign: 'Leader',
     pf__closeout_completed: '1',
     pf__closeout_not_completed: '1',
     pf__closeout_comments: 'Done',
-    pf__area_owner_sign: 'Owner',
+    pf__area_owner_sign: 'supervisor1',
+    pf__area_owner_sign_date: '2026-02-12',
     pf__haz_low_visibility: '1',
   };
 }
@@ -45,6 +48,16 @@ function freshApp() {
 
   const adminHash = bcrypt.hashSync('Admin!Pass123', 10);
   db.prepare(`INSERT INTO users (username, password_hash, role, full_name, position) VALUES (?, ?, 'admin', 'Admin User', 'Manager')`).run('admin', adminHash);
+  const staffSeeds = [
+    { username: 'supervisor1', role: 'supervisor', group_name: 'supervisors' },
+    { username: 'supervisor2', role: 'supervisor', group_name: 'supervisors' },
+    { username: 'supervisor3', role: 'supervisor', group_name: 'supervisors' },
+  ];
+  const staffHash = bcrypt.hashSync('permit123!', 10);
+  for (const staff of staffSeeds) {
+    db.prepare(`INSERT OR IGNORE INTO users (username, password_hash, role, group_name) VALUES (?, ?, ?, ?)`)
+      .run(staff.username, staffHash, staff.role, staff.group_name);
+  }
 
   return { app, db, cleanup: () => fs.rmSync(tmpDir, { recursive: true, force: true }) };
 }

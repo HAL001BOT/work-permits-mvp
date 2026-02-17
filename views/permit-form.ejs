@@ -27,6 +27,11 @@
       })();
       const fieldValues = permitFieldValues || {};
       const fieldErrs = fieldErrors || {};
+      const supervisorOptionsList = supervisorOptions || [];
+      const operatorOptionsList = operatorOptions || [];
+      const defaultSignoffNameValue = defaultSignoffName || (user?.full_name || user?.username || 'Team Member');
+      const today = new Date().toISOString().split('T')[0];
+      const initialSignoffsData = (teamMemberSignoffs && teamMemberSignoffs.length) ? teamMemberSignoffs : [{ name: defaultSignoffNameValue, date: today }];
     %>
 
     <form method="post" action="<%= action %>" class="card form-stack">
@@ -55,36 +60,59 @@
               <div class="form-stack">
                 <% fields.forEach(f => {
                      const rawValue = fieldValues[f.key];
-                     const hasValue = rawValue !== undefined && rawValue !== null;
-                     const value = hasValue ? rawValue : (f.defaultValue || '');
+                     const value = rawValue !== undefined && rawValue !== null ? rawValue : '';
+                     const inputId = `pf__${f.key}`;
+                     const baseRequired = f.required ? '1' : '0';
+                     const labelAttrs = f.dependsOn ? ` class="dependent-field" data-dependent-target="${inputId}"` : '';
+                     const controlTargets = f.key === 'contractor_company_enabled' ? 'pf__contractor_company pf__contractor_lead' : (f.key === 'project_number_needed' ? 'pf__project_number' : '');
+                     const controlAttr = controlTargets ? ` data-controls="${controlTargets}"` : '';
+                     const availableOptions = f.optionsSource === 'supervisors'
+                       ? supervisorOptionsList
+                       : (f.optionsSource === 'operators' ? operatorOptionsList : (f.options || []));
                  %>
                   <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
-                    <label>
-                      <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
-                      <% if (f.type === 'textarea') { %>
-                        <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %>><%= value %></textarea>
-                      <% } else if (f.type === 'checkbox') { %>
-                        <span class="check-option" style="margin-top:6px;">
-                          <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= (f.forcedTrue || Number(value)) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
-                          <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
-                          <span><%= f.label %></span>
-                          <% if (f.key === 'haz_mobile_equipment') { %>
-                            <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
-                          <% } %>
-                          <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
-                        </span>
-                      <% } else if (f.type === 'select') { %>
-                        <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> >
-                          <option value="">Select...</option>
-                          <% (f.options || []).forEach(opt => { %>
-                            <option value="<%= opt %>" <%= String(value || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
-                          <% }) %>
-                        </select>
-                      <% } else { %>
-                        <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= value %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> />
-                      <% } %>
-                      <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
-                    </label>
+                    <% if (f.component === 'signoffs') { %>
+                      <div class="signoff-block">
+                        <label><%= f.label %></label>
+                        <div id="signoff-rows" class="signoff-rows"></div>
+                        <button type="button" id="add-signoff-row" class="button ghost" style="width:auto;">Add personnel</button>
+                        <input type="hidden" name="pf__team_member_signoffs" id="pf__team_member_signoffs" data-required="1" data-section="<%= sectionName %>" />
+                        <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
+                        <small class="muted">Use an operator name or type freely, then capture the date for each entry.</small>
+                        <datalist id="operator-names">
+                          <% operatorOptionsList.forEach(opt => { %><option value="<%= opt.label %>"></option><% }) %>
+                        </datalist>
+                      </div>
+                    <% } else { %>
+                      <label<%= labelAttrs %>>
+                        <% const dataBaseRequiredAttr = `data-base-required="${baseRequired}"`; %>
+                        <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
+                        <% if (f.type === 'textarea') { %>
+                          <textarea name="pf__<%= f.key %>" rows="4" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %>><%= value %></textarea>
+                        <% } else if (f.type === 'checkbox') { %>
+                          <span class="check-option" style="margin-top:6px;">
+                            <input id="<%= inputId %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= (Number(value)) ? 'checked' : '' %> <%= sectionLocked ? 'disabled' : '' %> />
+                            <span><%= f.label %></span>
+                            <% if (f.key === 'haz_mobile_equipment') { %>
+                              <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
+                            <% } %>
+                            <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
+                          </span>
+                        <% } else if (f.type === 'select') { %>
+                          <select name="pf__<%= f.key %>" id="<%= inputId %>" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %> >
+                            <option value="">Select...</option>
+                            <% availableOptions.forEach(opt => { %>
+                              <% const optValue = typeof opt === 'string' ? opt : opt.value; %>
+                              <% const optLabel = typeof opt === 'string' ? opt : opt.label; %>
+                              <option value="<%= optValue %>" <%= String(value) === String(optValue) ? 'selected' : '' %>><%= optLabel %></option>
+                            <% }) %>
+                          </select>
+                        <% } else { %>
+                          <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" id="<%= inputId %>" name="pf__<%= f.key %>" value="<%= value %>" <%= f.readOnly ? 'readonly' : '' %> data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %> />
+                        <% } %>
+                        <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
+                      </label>
+                    <% } %>
                   <% } %>
                 <% }) %>
 
@@ -105,7 +133,6 @@
                   <% if (fieldErrs.confirm_no_other_permits) { %><small class="error"><%= fieldErrs.confirm_no_other_permits %></small><% } %>
                 <% } %>
               </div>
-            </div>
           </fieldset>
         <% }) %>
       <% } %>
@@ -187,6 +214,84 @@
         } catch (_e) {
           status.textContent = 'Autosave failed';
         }
+      }
+
+      const dependencyControllers = Array.from(document.querySelectorAll('[data-controls]'));
+      function setDependentFieldState(input, enabled) {
+        const label = document.querySelector(`[data-dependent-target="${input.id}"]`);
+        if (label) label.classList.toggle('dependent-field-hidden', !enabled);
+        input.disabled = !enabled;
+        if (!enabled) {
+          if (input.type === 'checkbox') input.checked = false;
+          else input.value = '';
+        }
+        const baseRequired = input.dataset.baseRequired === '1';
+        input.setAttribute('data-required', enabled && baseRequired ? '1' : '0');
+      }
+      dependencyControllers.forEach((ctrl) => {
+        const targetIds = (ctrl.dataset.controls || '').split(/\s+/).filter(Boolean);
+        const targets = targetIds.map((id) => document.getElementById(id)).filter(Boolean);
+        const sync = () => {
+          const enabled = Boolean(ctrl.checked);
+          targets.forEach((input) => setDependentFieldState(input, enabled));
+        };
+        ctrl.addEventListener('change', sync);
+        sync();
+      });
+
+      const signoffRows = document.getElementById('signoff-rows');
+      const signoffHidden = document.getElementById('pf__team_member_signoffs');
+      const addSignoffBtn = document.getElementById('add-signoff-row');
+      const signoffDefaultName = <%- JSON.stringify(defaultSignoffNameValue) %>;
+      const signoffDefaultDate = '<%= today %>';
+      const initialSignoffs = <%- JSON.stringify(initialSignoffsData) %>;
+      let signoffEntries = Array.isArray(initialSignoffs) ? initialSignoffs.slice() : [];
+      function updateSignoffHidden() {
+        if (signoffHidden) signoffHidden.value = JSON.stringify(signoffEntries);
+      }
+      function renderSignoffRows() {
+        if (!signoffRows) return;
+        signoffRows.innerHTML = '';
+        if (!signoffEntries.length) signoffEntries.push({ name: signoffDefaultName, date: signoffDefaultDate });
+        signoffEntries.forEach((entry, index) => {
+          const row = document.createElement('div');
+          row.className = 'signoff-row';
+          const nameInput = document.createElement('input');
+          nameInput.type = 'text';
+          nameInput.placeholder = 'Name';
+          nameInput.value = entry.name || '';
+          nameInput.setAttribute('list', 'operator-names');
+          nameInput.addEventListener('input', () => {
+            signoffEntries[index].name = nameInput.value;
+            updateSignoffHidden();
+          });
+          const dateInput = document.createElement('input');
+          dateInput.type = 'date';
+          dateInput.value = entry.date || signoffDefaultDate;
+          dateInput.addEventListener('input', () => {
+            signoffEntries[index].date = dateInput.value;
+            updateSignoffHidden();
+          });
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'button ghost';
+          removeBtn.textContent = 'Remove';
+          removeBtn.addEventListener('click', () => {
+            signoffEntries.splice(index, 1);
+            if (!signoffEntries.length) signoffEntries.push({ name: signoffDefaultName, date: signoffDefaultDate });
+            renderSignoffRows();
+          });
+          row.append(nameInput, dateInput, removeBtn);
+          signoffRows.appendChild(row);
+        });
+        updateSignoffHidden();
+      }
+      if (signoffRows) renderSignoffRows();
+      if (addSignoffBtn) {
+        addSignoffBtn.addEventListener('click', () => {
+          signoffEntries.push({ name: '', date: signoffDefaultDate });
+          renderSignoffRows();
+        });
       }
 
       const toggles = Array.from(document.querySelectorAll('.toggle-section'));

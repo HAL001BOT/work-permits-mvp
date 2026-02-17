@@ -75,6 +75,34 @@ button, .button {
 button:hover, .button:hover { background: #f3f4f6; }
 
 .form-stack { display: flex; flex-direction: column; gap: 12px; }
+.dependent-field {
+  transition: opacity 0.2s ease;
+}
+.dependent-field-hidden {
+  display: none;
+}
+.signoff-block {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 6px;
+}
+.signoff-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.signoff-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.signoff-row input {
+  flex: 1;
+  min-width: 150px;
+}
 .collapsible-section {
   border: 1px solid var(--border);
   border-radius: 12px;

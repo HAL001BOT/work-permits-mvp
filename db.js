@@ -200,6 +200,10 @@ function migrate() {
       CREATE INDEX IF NOT EXISTS idx_login_attempts_identity_time ON login_attempts(username, ip_address, attempted_at);
     `);
   });
+
+  applyMigration('011_user_groups', () => {
+    db.exec(`ALTER TABLE users ADD COLUMN group_name TEXT NOT NULL DEFAULT ''`);
+  });
 }
 
 module.exports = {

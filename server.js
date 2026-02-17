@@ -79,13 +79,15 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'permit_date', label: 'Permit End Date', type: 'date', required: true, section: 'General Information', persist: 'column' },
     { key: 'site', label: 'Site', type: 'text', required: true, section: 'General Information', readOnly: true, persist: 'column', defaultValue: 'Cleburne' },
     { key: 'building_location', label: 'Building / Location', type: 'select', options: ['Manufacturing building', 'Production building', 'Tanks'], required: true, section: 'General Information' },
-    { key: 'contractor_company', label: 'Contractor Company', type: 'text', required: true, section: 'General Information' },
+    { key: 'contractor_company_enabled', label: 'Using a contractor company?', type: 'checkbox', section: 'General Information' },
+    { key: 'contractor_company', label: 'Contractor Company Name', type: 'text', section: 'General Information', dependsOn: 'contractor_company_enabled' },
+    { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text', section: 'General Information', dependsOn: 'contractor_company_enabled' },
     { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C', 'D'], required: true, section: 'General Information' },
+    { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'select', section: 'General Information', required: true, optionsSource: 'supervisors' },
     { key: 'equipment', label: 'Equipment Being Worked On', type: 'text', required: true, section: 'General Information' },
-    { key: 'contractor_lead', label: 'Contractor Supervisor / Lead', type: 'text', required: true, section: 'General Information' },
-    { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'text', required: true, section: 'General Information' },
     { key: 'work_order_number', label: 'Work Order Number', type: 'text', required: true, section: 'General Information' },
-    { key: 'project_number', label: 'Project Number (if applicable)', type: 'text', required: true, section: 'General Information' },
+    { key: 'project_number_needed', label: 'Project number applies', type: 'checkbox', section: 'General Information' },
+    { key: 'project_number', label: 'Project Number', type: 'text', section: 'General Information', dependsOn: 'project_number_needed' },
 
     { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', required: true, section: 'Section 1 – Additional Work Permits' },
 
@@ -135,12 +137,13 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'needs_shutdown', label: 'Equipment/process needs shutdown', type: 'select', options: ['Yes', 'No', 'N/A'], required: true, section: 'Section 4 – Hazard Communication & Worksite Safety' },
     { key: 'chemicals_cleared', label: 'Chemicals in work area cleared', type: 'select', options: ['Yes', 'No', 'N/A'], required: true, section: 'Section 4 – Hazard Communication & Worksite Safety' },
 
-    { key: 'team_member_signoffs', label: '5a. Personnel sign-off names/dates', type: 'textarea', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'team_member_signoffs', label: '5a. Personnel sign-off names/dates', type: 'textarea', required: true, section: 'Section 5 – Approval & Closeout', component: 'signoffs' },
     { key: 'team_leader_sign', label: 'Team leader sign / date', type: 'text', required: true, section: 'Section 5 – Approval & Closeout' },
-    { key: 'closeout_completed', label: '5b. Work has been completed', type: 'checkbox', required: true, section: 'Section 5 – Approval & Closeout' },
-    { key: 'closeout_not_completed', label: '5b. Work has NOT been completed', type: 'checkbox', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'closeout_completed', label: '5b. Work has been completed', type: 'checkbox', section: 'Section 5 – Approval & Closeout' },
+    { key: 'closeout_not_completed', label: '5b. Work has NOT been completed', type: 'checkbox', section: 'Section 5 – Approval & Closeout' },
     { key: 'closeout_comments', label: 'Closeout comments', type: 'textarea', required: true, section: 'Section 5 – Approval & Closeout' },
-    { key: 'area_owner_sign', label: 'Shift Supervisor / Area Owner sign / date', type: 'text', required: true, section: 'Section 5 – Approval & Closeout' },
+    { key: 'area_owner_sign', label: 'Shift Supervisor / Area Owner', type: 'select', required: true, section: 'Section 5 – Approval & Closeout', optionsSource: 'supervisors' },
+    { key: 'area_owner_sign_date', label: 'Shift Supervisor / Area Owner Date', type: 'date', required: true, section: 'Section 5 – Approval & Closeout' },
   ],
   [PERMIT_TYPES.HOT_WORK]: [
     { key: 'work_by', label: 'Hot Work By (Sachem/Contractor)', type: 'text' },
@@ -196,6 +199,8 @@ const PERMIT_FIELD_SCHEMAS = {
 };
 
 const FIELD_EDITABLE_STATUSES = new Set(['draft', 'submitted']);
+const STAFF_GROUP_SUPERVISORS = 'supervisors';
+const STAFF_GROUP_OPERATORS = 'operators';
 const ALLOWED_UPLOAD_MIME = new Set([
   'application/pdf',
   'image/jpeg',
@@ -388,6 +393,58 @@ function buildFieldValuesWithColumns(schema, baseValues, source = {}) {
   return values;
 }
 
+function getUsersByGroup(groupName) {
+  return db.prepare('SELECT username, full_name FROM users WHERE group_name = ? ORDER BY username ASC').all(groupName);
+}
+
+function getStaffOptions() {
+  const supervisors = getUsersByGroup(STAFF_GROUP_SUPERVISORS).map((u) => ({ value: u.username, label: u.full_name || u.username }));
+  const operators = getUsersByGroup(STAFF_GROUP_OPERATORS).map((u) => ({ value: u.username, label: u.full_name || u.username }));
+  return { supervisors, operators };
+}
+
+function defaultSignoffName(user) {
+  if (!user) return 'Team Member';
+  return user.full_name || user.username || 'Team Member';
+}
+
+function enrichPermitFormLocals(req, locals) {
+  const staff = getStaffOptions();
+  return {
+    ...locals,
+    supervisorOptions: staff.supervisors,
+    operatorOptions: staff.operators,
+    defaultSignoffName: defaultSignoffName(req.session.user),
+  };
+}
+
+function renderPermitForm(req, res, locals) {
+  const fieldValues = locals.permitFieldValues || {};
+  const teamMemberSignoffs = parseTeamMemberSignoffs(fieldValues.team_member_signoffs);
+  res.render('permit-form', enrichPermitFormLocals(req, { ...locals, teamMemberSignoffs }));
+}
+
+function parseTeamMemberSignoffs(value) {
+  if (!value) return [];
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((entry) => entry && String(entry.name || '').trim())
+        .map((entry) => ({ name: String(entry.name || '').trim(), date: entry.date ? String(entry.date).trim() : '' }));
+    }
+  } catch (_err) {
+    // fall through to newline parsing
+  }
+  return trimmed
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => ({ name: line, date: '' }));
+}
+
 function parsePermitFieldsJson(value) {
   if (!value) return {};
   try {
@@ -464,6 +521,26 @@ function validatePermitFields(permitType, permitFields) {
   ];
   const selectedHazards = hazardKeys.filter((k) => Number(permitFields[k]));
   if (!selectedHazards.length) fieldErrors.hazards_group = 'Select at least one hazard';
+
+  const contractorEnabled = Number(permitFields.contractor_company_enabled);
+  if (contractorEnabled) {
+    if (!String(permitFields.contractor_company || '').trim()) fieldErrors.contractor_company = 'Required';
+    if (!String(permitFields.contractor_lead || '').trim()) fieldErrors.contractor_lead = 'Required';
+  }
+
+  const projectNeeded = Number(permitFields.project_number_needed);
+  if (projectNeeded && !String(permitFields.project_number || '').trim()) fieldErrors.project_number = 'Required';
+
+  const closeoutCompleted = Number(permitFields.closeout_completed);
+  const closeoutNotCompleted = Number(permitFields.closeout_not_completed);
+  if (!closeoutCompleted && !closeoutNotCompleted) fieldErrors.closeout_completed = 'Mark completed or not completed';
+
+  if (!String(permitFields.area_owner_sign || '').trim()) fieldErrors.area_owner_sign = 'Required';
+  if (!String(permitFields.area_owner_sign_date || '').trim()) fieldErrors.area_owner_sign_date = 'Required';
+
+  const signoffs = parseTeamMemberSignoffs(permitFields.team_member_signoffs);
+  if (!signoffs.length) fieldErrors.team_member_signoffs = 'Add at least one sign-off';
+  else if (signoffs.some((entry) => !entry.date)) fieldErrors.team_member_signoffs = 'Include dates for each team member';
 
   const firstError = Object.keys(fieldErrors)[0];
   return {
@@ -897,6 +974,8 @@ function buildPermitDetailViewLocals(req, permit, options = {}) {
     parsePermitFieldsJson(permit.permit_fields_json),
     { permit_date: permit.permit_date, site: permit.site }
   );
+  const staffOptions = getStaffOptions();
+  const teamMemberSignoffs = parseTeamMemberSignoffs(permitFieldValues.team_member_signoffs);
 
   const permissions = {
     canEdit: canEditFields(req.session.user, permit),
@@ -916,6 +995,9 @@ function buildPermitDetailViewLocals(req, permit, options = {}) {
     childPermits,
     permitFieldSchema,
     permitFieldValues,
+    supervisorOptions: staffOptions.supervisors,
+    operatorOptions: staffOptions.operators,
+    teamMemberSignoffs,
     permissions,
     user: req.session.user || null,
   };
@@ -1140,8 +1222,9 @@ app.get('/permits/new', requireAuth, (req, res) => {
   if (!canCreatePermit(req.session.user)) return res.status(403).send('Forbidden');
   const schema = fieldSchemaForType(PERMIT_TYPES.GENERAL_WORK_SAFE);
   const basePermit = { title: 'General safe work permit', site: 'Cleburne', permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, permit_date: '' };
-  const baseFieldValues = { general_permit_no: generateNextGswpTitle() };
-  res.render('permit-form', {
+  const defaultSignoffs = [{ name: defaultSignoffName(req.session.user), date: new Date().toISOString().split('T')[0] }];
+  const baseFieldValues = { general_permit_no: generateNextGswpTitle(), team_member_signoffs: JSON.stringify(defaultSignoffs) };
+  renderPermitForm(req, res, {
     permit: basePermit,
     action: '/permits',
     error: null,
@@ -1168,7 +1251,8 @@ app.post('/permits', requireAuth, (req, res) => {
   const startDate = permitFields.start_date || '';
 
   if (!permit_date) {
-    return res.status(400).render('permit-form', {
+    res.status(400);
+    return renderPermitForm(req, res, {
       permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
       action: '/permits',
       error: 'Permit end date is required.',
@@ -1181,7 +1265,8 @@ app.post('/permits', requireAuth, (req, res) => {
   }
 
   if (startDate && startDate > permit_date) {
-    return res.status(400).render('permit-form', {
+    res.status(400);
+    return renderPermitForm(req, res, {
       permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
       action: '/permits',
       error: 'Start date must be before or equal to permit end date.',
@@ -1195,7 +1280,8 @@ app.post('/permits', requireAuth, (req, res) => {
 
   const gswpValidation = validatePermitFields(PERMIT_TYPES.GENERAL_WORK_SAFE, permitFields);
   if (gswpValidation.message) {
-    return res.status(400).render('permit-form', {
+    res.status(400);
+    return renderPermitForm(req, res, {
       permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
       action: '/permits',
       error: gswpValidation.message,
@@ -1228,7 +1314,8 @@ app.post('/permits', requireAuth, (req, res) => {
       );
   } catch (err) {
     if (String(err.message || '').includes('idx_permits_permit_number_active')) {
-      return res.status(409).render('permit-form', {
+      res.status(409);
+      return renderPermitForm(req, res, {
         permit: { ...req.body, permit_type: PERMIT_TYPES.GENERAL_WORK_SAFE, required_permits_json: JSON.stringify(requiredPermits) },
         action: '/permits',
         error: 'Permit number conflict detected. Please save again.',
@@ -1254,7 +1341,7 @@ app.get('/permits/:id(\\d+)/edit', requireAuth, (req, res) => {
   if (!permit) return res.status(404).send('Permit not found');
   if (!canEditFields(req.session.user, permit)) return res.status(403).send('Forbidden');
   const schema = fieldSchemaForType(permit.permit_type || PERMIT_TYPES.GENERAL_WORK_SAFE);
-  res.render('permit-form', {
+  renderPermitForm(req, res, {
     permit,
     action: `/permits/${permit.id}`,
     error: null,
@@ -1288,7 +1375,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
   }
 
   if (!permit_date) {
-    return res.status(400).render('permit-form', {
+    res.status(400);
+    return renderPermitForm(req, res, {
       permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
       action: `/permits/${req.params.id}`,
       error: 'Permit end date is required.',
@@ -1302,7 +1390,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
 
   const startDate = permitFields.start_date || '';
   if (permitType === PERMIT_TYPES.GENERAL_WORK_SAFE && startDate && startDate > permit_date) {
-    return res.status(400).render('permit-form', {
+    res.status(400);
+    return renderPermitForm(req, res, {
       permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
       action: `/permits/${req.params.id}`,
       error: 'Start date must be before or equal to permit end date.',
@@ -1316,7 +1405,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
 
   const gswpValidation = validatePermitFields(permitType, permitFields);
   if (gswpValidation.message) {
-    return res.status(400).render('permit-form', {
+    res.status(400);
+    return renderPermitForm(req, res, {
       permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
       action: `/permits/${req.params.id}`,
       error: gswpValidation.message,
@@ -1336,7 +1426,8 @@ app.post('/permits/:id(\\d+)', requireAuth, (req, res) => {
     ).run(title, description, site, permit_date, JSON.stringify(requiredPermits), JSON.stringify(permitFields), permitType === PERMIT_TYPES.GENERAL_WORK_SAFE ? permitFields.general_permit_no : null, req.session.user.id, req.params.id);
   } catch (err) {
     if (String(err.message || '').includes('idx_permits_permit_number_active')) {
-      return res.status(409).render('permit-form', {
+      res.status(409);
+      return renderPermitForm(req, res, {
         permit: { ...permit, ...req.body, required_permits_json: JSON.stringify(requiredPermits) },
         action: `/permits/${req.params.id}`,
         error: 'Permit number conflict detected. Please save again.',
