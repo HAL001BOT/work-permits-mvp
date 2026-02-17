@@ -43,70 +43,77 @@
         <% Object.entries(grouped).forEach(([sectionName, fields]) => {
              const sectionLocked = (sectionName === 'Section 5 – Approval & Closeout' && user?.role === 'requester');
           %>
-          <fieldset>
-            <legend><%= sectionName %></legend>
-            <% if (sectionLocked) { %><p class="muted">Only supervisor/admin can edit this section.</p><% } %>
-            <div class="form-stack">
-              <% fields.forEach(f => { %>
-                <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
-                  <label>
-                    <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
-                    <% if (f.type === 'textarea') { %>
-                      <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %>><%= fieldValues[f.key] || '' %></textarea>
-                    <% } else if (f.type === 'checkbox') { %>
-                      <span class="check-option" style="margin-top:6px;">
-                        <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
-                        <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
-                        <span><%= f.label %></span>
-                        <% if (f.key === 'haz_mobile_equipment') { %>
-                          <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
-                        <% } %>
-                        <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
-                      </span>
-                    <% } else if (f.type === 'select') { %>
-                      <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> >
-                        <option value="">Select...</option>
-                        <% (f.options || []).forEach(opt => { %>
-                          <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
-                        <% }) %>
-                      </select>
-                    <% } else { %>
-                      <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> />
-                    <% } %>
-                    <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
-                  </label>
-                <% } %>
+          <fieldset class="collapsible-section" data-section-name="<%= sectionName %>">
+            <legend>
+              <button type="button" class="toggle-section" aria-expanded="true">
+                <span><%= sectionName %></span>
+                <span class="toggle-icon" aria-hidden="true">▾</span>
+              </button>
+            </legend>
+            <div class="section-body">
+              <% if (sectionLocked) { %><p class="muted">Only supervisor/admin can edit this section.</p><% } %>
+              <div class="form-stack">
+                <% fields.forEach(f => { %>
+                  <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
+                    <label>
+                      <% if (f.type !== 'checkbox') { %><%= f.label %><% } %>
+                      <% if (f.type === 'textarea') { %>
+                        <textarea name="pf__<%= f.key %>" rows="4" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %>><%= fieldValues[f.key] || '' %></textarea>
+                      <% } else if (f.type === 'checkbox') { %>
+                        <span class="check-option" style="margin-top:6px;">
+                          <input id="pf__<%= f.key %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= (f.forcedTrue || Number(fieldValues[f.key])) ? 'checked' : '' %> <%= (f.forcedTrue || sectionLocked) ? 'disabled' : '' %> />
+                          <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
+                          <span><%= f.label %></span>
+                          <% if (f.key === 'haz_mobile_equipment') { %>
+                            <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
+                          <% } %>
+                          <% if (f.forcedTrue) { %><span class="muted">(Required)</span><% } %>
+                        </span>
+                      <% } else if (f.type === 'select') { %>
+                        <select name="pf__<%= f.key %>" <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> >
+                          <option value="">Select...</option>
+                          <% (f.options || []).forEach(opt => { %>
+                            <option value="<%= opt %>" <%= String(fieldValues[f.key] || '') === String(opt) ? 'selected' : '' %>><%= opt %></option>
+                          <% }) %>
+                        </select>
+                      <% } else { %>
+                        <input type="<%= f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : 'text') %>" name="pf__<%= f.key %>" value="<%= fieldValues[f.key] || '' %>" <%= f.readOnly ? 'readonly' : '' %> <%= f.required ? 'required' : '' %> data-required="<%= f.required ? '1' : '0' %>" data-section="<%= sectionName %>" <%= sectionLocked ? 'disabled' : '' %> />
+                      <% } %>
+                      <% if (fieldErrs[f.key]) { %><small class="error"><%= fieldErrs[f.key] %></small><% } %>
+                    </label>
+                  <% } %>
 
-                <% if (sectionName === 'General Information' && f.key === 'start_date') { %>
-                  <label>Permit End Date
-                    <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
-                  </label>
-                  <label>Site
-                    <% if (currentType === 'general_work_safe') { %>
-                      <input name="site" value="Cleburne" readonly />
-                    <% } else { %>
-                      <input name="site" value="<%= permit?.site || '' %>" />
-                    <% } %>
-                  </label>
-                <% } %>
-              <% }) %>
-
-              <% if (sectionName === 'Section 3 – Hazard Evaluation' && fieldErrs.hazards_group) { %><small class="error"><%= fieldErrs.hazards_group %></small><% } %>
-
-              <% if (sectionName === 'Section 1 – Additional Work Permits' && currentType === 'general_work_safe') { %>
-                <label class="muted">Check all additional permits required for this job.</label>
-                <% supplementalPermitTypes.forEach(type => { %>
-                  <label class="check-option">
-                    <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
-                    <span><%= permitTypeLabels[type] %></span>
-                  </label>
+                  <% if (sectionName === 'General Information' && f.key === 'start_date') { %>
+                    <label>Permit End Date
+                      <input type="date" name="permit_date" required value="<%= permit?.permit_date || '' %>" />
+                    </label>
+                    <label>Site
+                      <% if (currentType === 'general_work_safe') { %>
+                        <input name="site" value="Cleburne" readonly />
+                      <% } else { %>
+                        <input name="site" value="<%= permit?.site || '' %>" />
+                      <% } %>
+                    </label>
+                  <% } %>
                 <% }) %>
-                <label class="check-option">
-                  <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> required />
-                  <span>I confirm no other permits are needed</span>
-                </label>
-                <% if (fieldErrs.confirm_no_other_permits) { %><small class="error"><%= fieldErrs.confirm_no_other_permits %></small><% } %>
-              <% } %>
+
+                <% if (sectionName === 'Section 3 – Hazard Evaluation' && fieldErrs.hazards_group) { %><small class="error"><%= fieldErrs.hazards_group %></small><% } %>
+
+                <% if (sectionName === 'Section 1 – Additional Work Permits' && currentType === 'general_work_safe') { %>
+                  <label class="muted">Check all additional permits required for this job.</label>
+                  <% supplementalPermitTypes.forEach(type => { %>
+                    <label class="check-option">
+                      <input type="checkbox" name="required_permits" value="<%= type %>" <%= selectedRequired.includes(type) ? 'checked' : '' %> />
+                      <span><%= permitTypeLabels[type] %></span>
+                    </label>
+                  <% }) %>
+                  <label class="check-option">
+                    <input type="checkbox" name="pf__confirm_no_other_permits" value="1" <%= Number(fieldValues.confirm_no_other_permits) ? 'checked' : '' %> required />
+                    <span>I confirm no other permits are needed</span>
+                  </label>
+                  <% if (fieldErrs.confirm_no_other_permits) { %><small class="error"><%= fieldErrs.confirm_no_other_permits %></small><% } %>
+                <% } %>
+              </div>
             </div>
           </fieldset>
         <% }) %>
@@ -190,6 +197,21 @@
           status.textContent = 'Autosave failed';
         }
       }
+
+      const toggles = Array.from(document.querySelectorAll('.toggle-section'));
+      toggles.forEach((btn) => {
+        const section = btn.closest('.collapsible-section');
+        if (!section) return;
+        const body = section.querySelector('.section-body');
+        const icon = btn.querySelector('.toggle-icon');
+        const setState = (expanded) => {
+          btn.setAttribute('aria-expanded', String(expanded));
+          if (icon) icon.textContent = expanded ? '▾' : '▸';
+          if (body) body.hidden = !expanded;
+        };
+        setState(true);
+        btn.addEventListener('click', () => { setState(btn.getAttribute('aria-expanded') !== 'true'); });
+      });
 
       computeRequiredSummary();
       autosaveTimer = setInterval(autosave, 20000);
