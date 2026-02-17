@@ -91,7 +91,8 @@
                           <textarea name="pf__<%= f.key %>" rows="4" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= sectionLocked ? 'disabled' : '' %>><%= value %></textarea>
                         <% } else if (f.type === 'checkbox') { %>
                           <span class="check-option" style="margin-top:6px;">
-                            <input id="<%= inputId %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= (Number(value)) ? 'checked' : '' %> <%= sectionLocked ? 'disabled' : '' %> />
+                            <input id="<%= inputId %>" type="checkbox" name="pf__<%= f.key %>" value="1" data-section="<%= sectionName %>" data-required="<%= baseRequired %>" <%= dataBaseRequiredAttr %><%= controlAttr %> <%= (Number(value) || f.forcedTrue) ? 'checked' : '' %> <%= (sectionLocked || f.forcedTrue) ? 'disabled' : '' %> />
+                            <% if (f.forcedTrue) { %><input type="hidden" name="pf__<%= f.key %>" value="1" /><% } %>
                             <span><%= f.label %></span>
                             <% if (f.key === 'haz_mobile_equipment') { %>
                               <input id="pf__mobile_equipment_cert_initials" name="pf__mobile_equipment_cert_initials" placeholder="Certification Initials" value="<%= fieldValues.mobile_equipment_cert_initials || '' %>" style="max-width:220px;" <%= sectionLocked ? 'disabled' : '' %> />
