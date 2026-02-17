@@ -201,6 +201,17 @@ const PERMIT_FIELD_SCHEMAS = {
 const FIELD_EDITABLE_STATUSES = new Set(['draft', 'submitted']);
 const STAFF_GROUP_SUPERVISORS = 'supervisors';
 const STAFF_GROUP_OPERATORS = 'operators';
+const DEFAULT_STAFF_PASSWORD = process.env.SEED_DEFAULT_PASS || 'permit123!';
+const STAFF_SEEDS = [
+  { username: 'supervisor1', role: ROLES?.SUPERVISOR || 'supervisor', group_name: STAFF_GROUP_SUPERVISORS, full_name: 'Shift Supervisor 1', position: 'Supervisor' },
+  { username: 'supervisor2', role: ROLES?.SUPERVISOR || 'supervisor', group_name: STAFF_GROUP_SUPERVISORS, full_name: 'Shift Supervisor 2', position: 'Supervisor' },
+  { username: 'supervisor3', role: ROLES?.SUPERVISOR || 'supervisor', group_name: STAFF_GROUP_SUPERVISORS, full_name: 'Shift Supervisor 3', position: 'Supervisor' },
+  { username: 'operator1', role: ROLES?.REQUESTER || 'requester', group_name: STAFF_GROUP_OPERATORS, full_name: 'Operator 1', position: 'Operator' },
+  { username: 'operator2', role: ROLES?.REQUESTER || 'requester', group_name: STAFF_GROUP_OPERATORS, full_name: 'Operator 2', position: 'Operator' },
+  { username: 'operator3', role: ROLES?.REQUESTER || 'requester', group_name: STAFF_GROUP_OPERATORS, full_name: 'Operator 3', position: 'Operator' },
+  { username: 'operator4', role: ROLES?.REQUESTER || 'requester', group_name: STAFF_GROUP_OPERATORS, full_name: 'Operator 4', position: 'Operator' },
+  { username: 'operator5', role: ROLES?.REQUESTER || 'requester', group_name: STAFF_GROUP_OPERATORS, full_name: 'Operator 5', position: 'Operator' },
+];
 const ALLOWED_UPLOAD_MIME = new Set([
   'application/pdf',
   'image/jpeg',
@@ -210,6 +221,52 @@ const ALLOWED_UPLOAD_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword',
 ]);
+
+function ensureStaffSeedUsers() {
+  const defaultHash = bcrypt.hashSync(DEFAULT_STAFF_PASSWORD, 12);
+  for (const seed of STAFF_SEEDS) {
+    const existing = db.prepare('SELECT id, role, group_name FROM users WHERE username = ?').get(seed.username);
+    if (existing) {
+      const updates = [];
+      const params = [];
+      if (seed.role && existing.role !== seed.role) {
+        updates.push('role = ?');
+        params.push(seed.role);
+      }
+      if (seed.group_name && existing.group_name !== seed.group_name) {
+        updates.push('group_name = ?');
+        params.push(seed.group_name);
+      }
+      if (updates.length) {
+        db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params, existing.id);
+      }
+      continue;
+    }
+
+    const columns = ['username', 'password_hash', 'role'];
+    const values = [
+      seed.username,
+      seed.password ? bcrypt.hashSync(seed.password, 12) : defaultHash,
+      seed.role || ROLES.REQUESTER,
+    ];
+    if (seed.full_name) {
+      columns.push('full_name');
+      values.push(seed.full_name);
+    }
+    if (seed.position) {
+      columns.push('position');
+      values.push(seed.position);
+    }
+    if (seed.group_name) {
+      columns.push('group_name');
+      values.push(seed.group_name);
+    }
+    const placeholders = columns.map(() => '?').join(', ');
+    db.prepare(`INSERT INTO users (${columns.join(', ')}) VALUES (${placeholders})`).run(...values);
+  }
+}
+
+ensureStaffSeedUsers();
 
 const uploadsDir = path.join(__dirname, 'data', 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
