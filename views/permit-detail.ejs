@@ -60,14 +60,13 @@
                 <input type="hidden" name="action" value="approve" />
                 <div class="signature-block">
                   <label>
-                    <span>Signature key</span>
-                    <input name="signature_text" id="signature-text-input" placeholder="Type name or draw below" />
+                    <span>Draw your signature (mouse or touch)</span>
                   </label>
                   <div class="signature-drawer">
-                    <canvas id="signature-pad" width="400" height="150"></canvas>
+                    <canvas id="signature-pad" width="600" height="220"></canvas>
                     <div class="row gap wrap" style="margin-top:6px;">
                       <button type="button" id="clear-signature" class="button ghost">Clear</button>
-                      <small class="muted">Draw with mouse or touch; data is captured when you approve.</small>
+                      <small class="muted">Data is captured when you approve.</small>
                     </div>
                   </div>
                   <input type="hidden" name="signature_image" id="signature-image-input" />
@@ -173,7 +172,6 @@
     (function () {
       const canvas = document.getElementById('signature-pad');
       const signatureImageInput = document.getElementById('signature-image-input');
-      const signatureTextInput = document.getElementById('signature-text-input');
       const approveForm = document.getElementById('approve-form');
       if (!canvas || !signatureImageInput) return;
       const ctx = canvas.getContext('2d');
@@ -243,22 +241,17 @@
       if (clearButton) {
         clearButton.addEventListener('click', () => {
           clearCanvas();
-          if (signatureTextInput) signatureTextInput.value = '';
         });
       }
 
       if (approveForm) {
         approveForm.addEventListener('submit', (event) => {
           updateSignatureImage();
-          const typedValue = (signatureTextInput?.value || '').trim();
           const imageValue = (signatureImageInput.value || '').trim();
-          if (!typedValue && !imageValue) {
+          if (!imageValue) {
             event.preventDefault();
-            alert('Please provide a signature by typing or drawing before approving.');
+            alert('Please draw your signature before approving.');
             return;
-          }
-          if (imageValue && !typedValue && signatureTextInput) {
-            signatureTextInput.value = 'Drawn signature';
           }
         });
       }
