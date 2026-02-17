@@ -59,11 +59,9 @@
               <form method="post" action="/permits/<%= permit.id %>/transition" class="row gap wrap" id="approve-form">
                 <input type="hidden" name="action" value="approve" />
                 <div class="signature-block">
-                  <label>
-                    <span>Draw your signature (mouse or touch)</span>
-                  </label>
+                  <label><span>Draw your signature (mouse or touch)</span></label>
                   <div class="signature-drawer">
-                    <canvas id="signature-pad" width="600" height="220"></canvas>
+                    <canvas id="signature-pad"></canvas>
                     <div class="row gap wrap" style="margin-top:6px;">
                       <button type="button" id="clear-signature" class="button ghost">Clear</button>
                       <small class="muted">Data is captured when you approve.</small>
@@ -71,7 +69,9 @@
                   </div>
                   <input type="hidden" name="signature_image" id="signature-image-input" />
                 </div>
-                <button class="button primary" type="submit">Approve + Sign</button>
+                <div class="row">
+                  <button class="button primary" type="submit">Approve + Sign</button>
+                </div>
               </form>
             <% } %>
             <% if (permissions.transitions.includes('close')) { %>
@@ -184,6 +184,15 @@
       let hasStroke = false;
       let lastPoint = null;
 
+      function resizeCanvas() {
+        const ratio = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        clearCanvas();
+      }
+
       function toCanvasPoint(event) {
         const rect = canvas.getBoundingClientRect();
         const clientX = event.clientX ?? (event.touches && event.touches[0] && event.touches[0].clientX) ?? 0;
@@ -243,6 +252,9 @@
           clearCanvas();
         });
       }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
 
       if (approveForm) {
         approveForm.addEventListener('submit', (event) => {
