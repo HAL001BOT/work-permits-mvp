@@ -1613,7 +1613,9 @@ app.post('/permits/:id(\\d+)/transition', requireAuth, (req, res) => {
     if (action === 'submit') {
       db.prepare(`UPDATE permits SET status = 'submitted', updated_by = ?, updated_at = datetime('now') WHERE id = ?`).run(req.session.user.id, permit.id);
     } else if (action === 'approve') {
-      const signature = (req.body.signature_text || '').trim();
+      const providedText = String(req.body.signature_text || '').trim();
+      const signatureImage = String(req.body.signature_image || '').trim();
+      const signature = signatureImage || providedText;
       if (!signature) throw new Error('Signature is required to approve');
       const approver = db.prepare('SELECT username, full_name, position FROM users WHERE id = ?').get(req.session.user.id);
       const approverName = approver?.full_name ? `${approver.full_name}${approver.position ? ` (${approver.position})` : ''}` : req.session.user.username;

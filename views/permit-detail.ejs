@@ -35,7 +35,13 @@
           <div><dt>Updated By</dt><dd><%= permit.updated_by_full_name ? (permit.updated_by_full_name + (permit.updated_by_position ? ' (' + permit.updated_by_position + ')' : '')) : permit.updated_by_name %></dd></div>
           <div><dt>Approved By</dt><dd><%= permit.approver_name || '—' %></dd></div>
           <div><dt>Approved At</dt><dd><%= permit.approved_at || '—' %></dd></div>
-          <div><dt>Signature</dt><dd><%= permit.signature_text || '—' %></dd></div>
+          <div><dt>Signature</dt><dd>
+            <% if (permit.signature_text && permit.signature_text.startsWith('data:image')) { %>
+              <img src="<%= permit.signature_text %>" alt="Signature" class="signature-graphic" />
+            <% } else { %>
+              <%= permit.signature_text || '—' %>
+            <% } %>
+          </dd></div>
         </dl>
       </article>
 
@@ -50,9 +56,22 @@
               <form method="post" action="/permits/<%= permit.id %>/transition"><input type="hidden" name="action" value="submit" /><button class="button primary" type="submit">Submit</button></form>
             <% } %>
             <% if (permissions.transitions.includes('approve')) { %>
-              <form method="post" action="/permits/<%= permit.id %>/transition" class="row gap wrap">
+              <form method="post" action="/permits/<%= permit.id %>/transition" class="row gap wrap" id="approve-form">
                 <input type="hidden" name="action" value="approve" />
-                <input name="signature_text" placeholder="Type signature (name/ack)" required />
+                <div class="signature-block">
+                  <label>
+                    <span>Signature key</span>
+                    <input name="signature_text" id="signature-text-input" placeholder="Type name or draw below" />
+                  </label>
+                  <div class="signature-drawer">
+                    <canvas id="signature-pad" width="400" height="150"></canvas>
+                    <div class="row gap wrap" style="margin-top:6px;">
+                      <button type="button" id="clear-signature" class="button ghost">Clear</button>
+                      <small class="muted">Draw with mouse or touch; data is captured when you approve.</small>
+                    </div>
+                  </div>
+                  <input type="hidden" name="signature_image" id="signature-image-input" />
+                </div>
                 <button class="button primary" type="submit">Approve + Sign</button>
               </form>
             <% } %>
@@ -150,5 +169,100 @@
       </article>
     </section>
   </main>
+  <script>
+    (function () {
+      const canvas = document.getElementById('signature-pad');
+      const signatureImageInput = document.getElementById('signature-image-input');
+      const signatureTextInput = document.getElementById('signature-text-input');
+      const approveForm = document.getElementById('approve-form');
+      if (!canvas || !signatureImageInput) return;
+      const ctx = canvas.getContext('2d');
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#111';
+      canvas.style.touchAction = 'none';
+      let drawing = false;
+      let hasStroke = false;
+      let lastPoint = null;
+
+      function toCanvasPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = event.clientX ?? (event.touches && event.touches[0] && event.touches[0].clientX) ?? 0;
+        const clientY = event.clientY ?? (event.touches && event.touches[0] && event.touches[0].clientY) ?? 0;
+        return {
+          x: clientX - rect.left,
+          y: clientY - rect.top,
+        };
+      }
+
+      function startDrawing(event) {
+        event.preventDefault();
+        drawing = true;
+        hasStroke = true;
+        lastPoint = toCanvasPoint(event);
+      }
+
+      function draw(event) {
+        if (!drawing) return;
+        event.preventDefault();
+        const point = toCanvasPoint(event);
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        lastPoint = point;
+      }
+
+      function stopDrawing() {
+        if (!drawing) return;
+        drawing = false;
+        updateSignatureImage();
+      }
+
+      function updateSignatureImage() {
+        signatureImageInput.value = hasStroke ? canvas.toDataURL('image/png') : '';
+      }
+
+      function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        hasStroke = false;
+        updateSignatureImage();
+      }
+
+      canvas.addEventListener('pointerdown', (event) => {
+        startDrawing(event);
+        if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
+      });
+      canvas.addEventListener('pointermove', draw);
+      canvas.addEventListener('pointerup', stopDrawing);
+      canvas.addEventListener('pointerleave', stopDrawing);
+      canvas.addEventListener('pointercancel', stopDrawing);
+
+      const clearButton = document.getElementById('clear-signature');
+      if (clearButton) {
+        clearButton.addEventListener('click', () => {
+          clearCanvas();
+          if (signatureTextInput) signatureTextInput.value = '';
+        });
+      }
+
+      if (approveForm) {
+        approveForm.addEventListener('submit', (event) => {
+          updateSignatureImage();
+          const typedValue = (signatureTextInput?.value || '').trim();
+          const imageValue = (signatureImageInput.value || '').trim();
+          if (!typedValue && !imageValue) {
+            event.preventDefault();
+            alert('Please provide a signature by typing or drawing before approving.');
+            return;
+          }
+          if (imageValue && !typedValue && signatureTextInput) {
+            signatureTextInput.value = 'Drawn signature';
+          }
+        });
+      }
+    }());
+  </script>
 </body>
 </html>
