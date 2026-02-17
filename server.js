@@ -1019,8 +1019,8 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
       const sigX = doc.x;
       const sigY = doc.y;
       try {
-        doc.image(buffer, sigX, sigY + 4, { fit: [160, 80] });
-        doc.moveDown(5);
+        doc.image(buffer, sigX, sigY + 4, { fit: [360, 150], align: 'left' });
+        doc.moveDown(3);
       } catch (_err) {
         doc.text(`Signature: ${permit.signature_text}`);
       }
