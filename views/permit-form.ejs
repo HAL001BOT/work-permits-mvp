@@ -146,7 +146,7 @@
 
       const form = document.querySelector('form.form-stack');
       const permitId = '<%= permit?.id || '' %>';
-      if (!form || !permitId) return;
+      if (!form) return;
 
       let dirty = false;
       let autosaveTimer = null;
@@ -179,7 +179,7 @@
       form.addEventListener('change', () => { dirty = true; computeRequiredSummary(); });
 
       async function autosave() {
-        if (!dirty) return;
+        if (!dirty || !permitId) return;
         dirty = false;
         const data = new URLSearchParams(new FormData(form));
         try {
@@ -217,7 +217,9 @@
       });
 
       computeRequiredSummary();
-      autosaveTimer = setInterval(autosave, 20000);
+      if (permitId) {
+        autosaveTimer = setInterval(autosave, 20000);
+      }
       window.addEventListener('beforeunload', () => { if (autosaveTimer) clearInterval(autosaveTimer); });
     })();
   </script>
