@@ -964,6 +964,13 @@ function renderPermitFieldsPdf(doc, permit) {
   });
 }
 
+function extractSignatureImage(signatureText) {
+  if (!signatureText) return null;
+  const match = String(signatureText).match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) return null;
+  return { mime: match[1], data: match[2] };
+}
+
 function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
   const doc = new PDFDocument({ margin: 50, size: 'A4' });
   const generatedAt = new Date().toLocaleString();
@@ -1004,7 +1011,23 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
 
   doc.y = infoBlockTop + infoBlockHeight + 20;
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
-  if (permit.signature_text) doc.text(`Signature: ${permit.signature_text}`);
+  if (permit.signature_text) {
+    const signatureImage = extractSignatureImage(permit.signature_text);
+    if (signatureImage) {
+      doc.text('Signature:');
+      const buffer = Buffer.from(signatureImage.data, 'base64');
+      const sigX = doc.x;
+      const sigY = doc.y;
+      try {
+        doc.image(buffer, sigX, sigY + 4, { fit: [160, 80] });
+        doc.moveDown(5);
+      } catch (_err) {
+        doc.text(`Signature: ${permit.signature_text}`);
+      }
+    } else {
+      doc.text(`Signature: ${permit.signature_text}`);
+    }
+  }
 
   renderPermitFieldsPdf(doc, permit);
 
