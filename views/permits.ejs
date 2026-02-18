@@ -66,10 +66,6 @@
 
     <section class="table-card card">
       <div class="row space-between wrap gap" style="padding:12px 14px 0;">
-        <label class="check-option" style="font-size:13px;">
-          <input type="checkbox" id="compact-toggle" />
-          <span>Compact view</span>
-        </label>
         <form method="get" action="/permits" class="row gap wrap">
           <input type="hidden" name="status" value="<%= filters.status %>" />
           <input type="hidden" name="submittedBy" value="<%= filters.submittedBy %>" />
@@ -153,18 +149,6 @@
       });
     });
 
-    const compactToggle = document.getElementById('compact-toggle');
-    const table = document.getElementById('permits-table');
-    if (compactToggle && table) {
-      const key = 'permits-compact-view';
-      const current = localStorage.getItem(key) === '1';
-      compactToggle.checked = current;
-      if (current) table.classList.add('compact');
-      compactToggle.addEventListener('change', () => {
-        table.classList.toggle('compact', compactToggle.checked);
-        localStorage.setItem(key, compactToggle.checked ? '1' : '0');
-      });
-    }
   </script>
 </body>
 </html>
