@@ -8,22 +8,27 @@
 </head>
 <body>
   <main class="container narrow auth-layout">
-    <section class="card">
-      <div class="row gap-md" style="align-items:center; margin-bottom: 10px;">
-        <img src="/img/sachem.gif" alt="Sachem" class="header-logo" />
+    <section class="card login-card">
+      <div class="login-header">
+        <div class="login-logo">
+          <img src="/img/sachem.gif" alt="Sachem" />
+        </div>
         <div>
-          <h1>SACHEM inc permits</h1>
+          <p class="login-label">SACHEM inc permits</p>
+          <p class="muted login-tagline">Securely track and approve general safe work permits for Cleburne operations.</p>
         </div>
       </div>
       <% if (error) { %><p class="error"><%= error %></p><% } %>
-      <form method="post" action="/login" class="form-stack">
-        <label>Username
+      <form method="post" action="/login" class="form-stack login-form">
+        <label>
+          <span>Username</span>
           <input name="username" required autocomplete="username" />
         </label>
-        <label>Password
+        <label>
+          <span>Password</span>
           <input type="password" name="password" required autocomplete="current-password" />
         </label>
-        <button type="submit" class="button primary">Sign In</button>
+        <button type="submit" class="button primary login-action">Sign In</button>
       </form>
     </section>
   </main>
