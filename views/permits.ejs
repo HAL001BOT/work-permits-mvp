@@ -66,18 +66,7 @@
 
     <section class="table-card card">
       <div class="row space-between wrap gap" style="padding:12px 14px 0;">
-        <form method="get" action="/permits" class="row gap wrap">
-          <input type="hidden" name="status" value="<%= filters.status %>" />
-          <input type="hidden" name="submittedBy" value="<%= filters.submittedBy %>" />
-          <input type="hidden" name="startDate" value="<%= filters.startDate %>" />
-          <input type="hidden" name="endDate" value="<%= filters.endDate %>" />
-          <label>Rows per page
-            <select name="perPage" onchange="this.form.submit()">
-              <% [10,25,50,100].forEach(n => { %><option value="<%= n %>" <%= pagination.perPage === n ? 'selected' : '' %>><%= n %></option><% }) %>
-            </select>
-          </label>
-          <input type="hidden" name="page" value="1" />
-        </form>
+        <div><!-- spacing intentionally left blank --></div>
       </div>
       <div class="table-wrap">
         <table id="permits-table">
@@ -120,7 +109,7 @@
       <div class="row space-between wrap gap" style="padding:12px 14px 14px;">
         <small class="muted">Page <%= pagination.page %> of <%= pagination.totalPages %> · <%= pagination.total %> parent permits</small>
         <div class="row gap wrap">
-          <% const qp = `status=${encodeURIComponent(filters.status)}&submittedBy=${encodeURIComponent(filters.submittedBy)}&startDate=${encodeURIComponent(filters.startDate)}&endDate=${encodeURIComponent(filters.endDate)}&perPage=${pagination.perPage}`; %>
+          <% const qp = `status=${encodeURIComponent(filters.status)}&submittedBy=${encodeURIComponent(filters.submittedBy)}&startDate=${encodeURIComponent(filters.startDate)}&endDate=${encodeURIComponent(filters.endDate)}`; %>
           <% if (pagination.page > 1) { %><a class="button ghost" href="/permits?<%= qp %>&page=<%= pagination.page - 1 %>">Prev</a><% } %>
           <% if (pagination.page < pagination.totalPages) { %><a class="button ghost" href="/permits?<%= qp %>&page=<%= pagination.page + 1 %>">Next</a><% } %>
         </div>

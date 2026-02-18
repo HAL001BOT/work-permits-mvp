@@ -1253,7 +1253,7 @@ app.post('/admin/users/:id(\\d+)/profile', requireAuth, requireAdmin, (req, res)
 app.get('/permits', requireAuth, (req, res) => {
   const { filters, where, params } = getFilterContext(req.query);
   const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
-  const perPage = Math.min(100, Math.max(10, Number.parseInt(req.query.perPage || '25', 10) || 25));
+  const perPage = 10;
   const offset = (page - 1) * perPage;
 
   const whereSql = `${filters.includeArchived ? '1=1' : 'p.deleted_at IS NULL'} ${where ? `AND ${where.replace(/^WHERE\s+/i, '')}` : ''}`;
