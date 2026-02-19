@@ -177,6 +177,7 @@ body {
   border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
+  justify-content: center;
   background: linear-gradient(135deg, rgba(6, 120, 92, 0.9) 0%, rgba(13, 148, 102, 0.88) 100%);
   border-color: rgba(110, 231, 183, 0.45);
   color: #ecfdf5;
