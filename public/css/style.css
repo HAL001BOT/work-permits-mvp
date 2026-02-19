@@ -16,6 +16,15 @@ body {
   color: var(--text);
 }
 
+.login-page {
+  background:
+    radial-gradient(1100px 520px at 12% 6%, rgba(24, 194, 154, 0.34), transparent 62%),
+    radial-gradient(900px 460px at 86% 18%, rgba(16, 185, 206, 0.28), transparent 58%),
+    radial-gradient(760px 440px at 48% 68%, rgba(10, 132, 199, 0.24), transparent 62%),
+    linear-gradient(140deg, #033d44 0%, #065b67 35%, #0a5e7d 68%, #0b4b6b 100%);
+  min-height: 100vh;
+}
+
 .container { max-width: 1140px; margin: 28px auto; padding: 0 16px 22px; }
 .narrow { max-width: 700px; }
 .auth-layout { min-height: 85vh; display: flex; align-items: center; justify-content: center; }
