@@ -118,17 +118,17 @@ body {
 }
 .login-form input {
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.42);
+  background: rgba(236, 253, 245, 0.24);
   border-radius: 12px;
-  border: 1px solid rgba(186, 230, 253, 0.55);
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.07);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(167, 243, 208, 0.5);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .login-form input:focus {
-  border-color: rgba(125, 211, 252, 0.9);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-  background: rgba(255, 255, 255, 0.56);
+  border-color: rgba(110, 231, 183, 0.9);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  background: rgba(236, 253, 245, 0.34);
 }
 .password-wrap {
   display: grid;
@@ -142,12 +142,13 @@ body {
 .password-toggle {
   min-width: 68px;
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.85) 0%, rgba(8, 145, 178, 0.82) 100%);
+  color: #ecfeff;
   font-weight: 600;
 }
 .password-toggle:hover {
-  background: #eef2f7;
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.9) 0%, rgba(6, 182, 212, 0.88) 100%);
 }
 .caps-hint {
   color: #b45309;
@@ -176,12 +177,12 @@ body {
   border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
-  background: linear-gradient(135deg, rgba(14, 116, 144, 0.85) 0%, rgba(8, 145, 178, 0.82) 100%);
-  border-color: rgba(125, 211, 252, 0.5);
-  color: #ecfeff;
+  background: linear-gradient(135deg, rgba(6, 120, 92, 0.9) 0%, rgba(13, 148, 102, 0.88) 100%);
+  border-color: rgba(110, 231, 183, 0.45);
+  color: #ecfdf5;
 }
 .login-action:hover {
-  background: linear-gradient(135deg, rgba(8, 145, 178, 0.9) 0%, rgba(6, 182, 212, 0.88) 100%);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.93) 0%, rgba(16, 185, 129, 0.9) 100%);
 }
 @media (max-width: 900px) {
   .auth-shell {
@@ -259,12 +260,12 @@ button, .button {
 .button.primary:hover { filter: brightness(0.95); }
 
 .login-card .button.primary {
-  background: linear-gradient(135deg, rgba(14, 116, 144, 0.85) 0%, rgba(8, 145, 178, 0.82) 100%);
-  border-color: rgba(125, 211, 252, 0.5);
-  color: #ecfeff;
+  background: linear-gradient(135deg, rgba(6, 120, 92, 0.9) 0%, rgba(13, 148, 102, 0.88) 100%);
+  border-color: rgba(110, 231, 183, 0.45);
+  color: #ecfdf5;
 }
 .login-card .button.primary:hover {
-  background: linear-gradient(135deg, rgba(8, 145, 178, 0.9) 0%, rgba(6, 182, 212, 0.88) 100%);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.93) 0%, rgba(16, 185, 129, 0.9) 100%);
   filter: none;
 }
 .button.ghost { background: #f8fafc; }
