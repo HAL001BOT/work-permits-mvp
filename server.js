@@ -1014,15 +1014,23 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
   if (permit.signature_text) {
     const signatureImage = extractSignatureImage(permit.signature_text);
     if (signatureImage) {
-      doc.text('Signature:');
       const buffer = Buffer.from(signatureImage.data, 'base64');
-      const sigX = doc.x;
-      const sigY = doc.y;
+      const sigLabelY = doc.y;
+      doc.text('Signature:');
+
+      const sigX = 64;
+      const sigTop = sigLabelY + 14;
+      const sigBoxW = 220;
+      const sigBoxH = 92;
+
+      ensurePdfSpace(doc, sigBoxH + 26);
       try {
-        doc.image(buffer, sigX, sigY + 4, { fit: [360, 150], align: 'left' });
-        doc.moveDown(3);
+        doc.roundedRect(sigX - 4, sigTop - 4, sigBoxW + 8, sigBoxH + 8, 6).stroke('#cbd5e1');
+        doc.image(buffer, sigX, sigTop, { fit: [sigBoxW, sigBoxH], align: 'left', valign: 'top' });
+        doc.y = sigTop + sigBoxH + 12;
       } catch (_err) {
-        doc.text(`Signature: ${permit.signature_text}`);
+        doc.y = sigLabelY;
+        doc.text(`Signature: [image provided]`);
       }
     } else {
       doc.text(`Signature: ${permit.signature_text}`);
