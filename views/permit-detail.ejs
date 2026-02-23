@@ -35,13 +35,6 @@
           <div><dt>Updated By</dt><dd><%= permit.updated_by_full_name ? (permit.updated_by_full_name + (permit.updated_by_position ? ' (' + permit.updated_by_position + ')' : '')) : permit.updated_by_name %></dd></div>
           <div><dt>Approved By</dt><dd><%= permit.approver_name || '—' %></dd></div>
           <div><dt>Approved At</dt><dd><%= permit.approved_at || '—' %></dd></div>
-          <div><dt>Signature</dt><dd>
-            <% if (permit.signature_text && permit.signature_text.startsWith('data:image')) { %>
-              <img src="<%= permit.signature_text %>" alt="Signature" class="signature-graphic" />
-            <% } else { %>
-              <%= permit.signature_text || '—' %>
-            <% } %>
-          </dd></div>
         </dl>
       </article>
 
@@ -152,6 +145,15 @@
       <article class="card">
         <h2 class="section-title">Description</h2>
         <p class="description"><%= permit.description || 'No description provided.' %></p>
+      </article>
+
+      <article class="card">
+        <h2 class="section-title">Approval Signature</h2>
+        <% if (permit.signature_text && permit.signature_text.startsWith('data:image')) { %>
+          <img src="<%= permit.signature_text %>" alt="Signature" class="signature-graphic" />
+        <% } else { %>
+          <p><%= permit.signature_text || '—' %></p>
+        <% } %>
       </article>
 
       <article class="card">

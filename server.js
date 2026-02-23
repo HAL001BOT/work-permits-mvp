@@ -1011,15 +1011,20 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
 
   doc.y = infoBlockTop + infoBlockHeight + 20;
   if (permit.approver_name) doc.text(`Approved By: ${permit.approver_name} (${formatDate(permit.approved_at)})`);
+
+  renderPermitFieldsPdf(doc, permit);
+
   if (permit.signature_text) {
     const signatureImage = extractSignatureImage(permit.signature_text);
+    ensurePdfSpace(doc, 140);
+    doc.moveDown(0.5);
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(BRAND.primaryDark).text('Approval Signature');
+    doc.moveDown(0.2);
+
     if (signatureImage) {
       const buffer = Buffer.from(signatureImage.data, 'base64');
-      ensurePdfSpace(doc, 130);
-      doc.text('Signature:');
-
       const sigX = 64;
-      const sigTop = doc.y + 6;
+      const sigTop = doc.y + 4;
       const sigBoxW = 220;
       const sigBoxH = 92;
 
@@ -1028,14 +1033,12 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
         doc.image(buffer, sigX, sigTop, { fit: [sigBoxW, sigBoxH], align: 'left', valign: 'top' });
         doc.y = sigTop + sigBoxH + 12;
       } catch (_err) {
-        doc.text(`Signature: [image provided]`);
+        doc.font('Helvetica').fontSize(10).fillColor('#334155').text('Signature: [image provided]');
       }
     } else {
-      doc.text(`Signature: ${permit.signature_text}`);
+      doc.font('Helvetica').fontSize(10).fillColor('#334155').text(`Signature: ${permit.signature_text}`);
     }
   }
-
-  renderPermitFieldsPdf(doc, permit);
 
   doc.end();
 }
