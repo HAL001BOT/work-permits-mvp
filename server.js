@@ -716,6 +716,12 @@ function toDisplayValue(field, value) {
   if (value === null || value === undefined || value === '') return '—';
   if (field === 'status') return formatStatusLabel(String(value));
   if (field === 'is_locked') return Number(value) ? 'Yes' : 'No';
+  if (field === 'signature_text') {
+    const raw = String(value);
+    if (raw.startsWith('data:image/')) return 'Signature image captured';
+    if (raw.length > 120) return `${raw.slice(0, 117)}...`;
+    return raw;
+  }
   if (String(field).includes('date') || String(field).endsWith('_at')) return formatDate(value);
   return String(value);
 }
