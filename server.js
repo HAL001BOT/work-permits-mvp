@@ -1015,21 +1015,19 @@ function generatePermitPdfLegacy(res, permit, safeFileBaseOverride) {
     const signatureImage = extractSignatureImage(permit.signature_text);
     if (signatureImage) {
       const buffer = Buffer.from(signatureImage.data, 'base64');
-      const sigLabelY = doc.y;
+      ensurePdfSpace(doc, 130);
       doc.text('Signature:');
 
       const sigX = 64;
-      const sigTop = sigLabelY + 14;
+      const sigTop = doc.y + 6;
       const sigBoxW = 220;
       const sigBoxH = 92;
 
-      ensurePdfSpace(doc, sigBoxH + 26);
       try {
         doc.roundedRect(sigX - 4, sigTop - 4, sigBoxW + 8, sigBoxH + 8, 6).stroke('#cbd5e1');
         doc.image(buffer, sigX, sigTop, { fit: [sigBoxW, sigBoxH], align: 'left', valign: 'top' });
         doc.y = sigTop + sigBoxH + 12;
       } catch (_err) {
-        doc.y = sigLabelY;
         doc.text(`Signature: [image provided]`);
       }
     } else {
