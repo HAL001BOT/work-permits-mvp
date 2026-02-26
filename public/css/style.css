@@ -495,20 +495,6 @@ th { background: #f8fafc; font-size: 12px; letter-spacing: .02em; text-transform
 .detail-list dt { color: var(--muted); font-weight: 600; }
 .detail-list dd { margin: 0; }
 
-.permit-field-list div {
-  grid-template-columns: minmax(220px, max-content) 1fr;
-}
-.permit-field-list dt {
-  font-weight: 800;
-  color: #0f172a;
-}
-.permit-field-list dt::after {
-  content: ":";
-}
-.permit-field-list dd {
-  padding-left: 18px;
-  white-space: pre-wrap;
-}
 
 .description { margin: 0; white-space: pre-wrap; line-height: 1.5; }
 .activity-list { margin: 0; padding-left: 18px; }
@@ -574,5 +560,4 @@ legend {
 
 @media (max-width: 700px) {
   .detail-list div { grid-template-columns: 1fr; gap: 4px; }
-  .permit-field-list dd { padding-left: 16px; }
 }
