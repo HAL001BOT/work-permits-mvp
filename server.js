@@ -931,14 +931,28 @@ function renderPermitFieldsPdf(doc, permit) {
   const values = parsePermitFieldsJson(permit.permit_fields_json);
   if (!schema.length) return;
 
-  const textWidth = 475;
+  const rowX = 60;
+  const rowWidth = 475;
+  const labelWidth = 190;
+  const valueX = rowX + labelWidth + 14;
+  const valueWidth = rowWidth - labelWidth - 14;
+
   const drawField = (label, rawValue) => {
     const value = rawValue === undefined || rawValue === null || String(rawValue).trim() === '' ? '—' : String(rawValue);
-    const composed = `${label}: ${value}`;
-    doc.font('Helvetica').fontSize(9);
-    const needed = Math.max(16, doc.heightOfString(composed, { width: textWidth, align: 'left' }) + 4);
+    const labelText = `${label}:`;
+
+    doc.fontSize(9);
+    const labelHeight = doc.font('Helvetica-Bold').heightOfString(labelText, { width: labelWidth, align: 'left' });
+    const valueHeight = doc.font('Helvetica').heightOfString(String(value), { width: valueWidth, align: 'left' });
+    const needed = Math.max(16, Math.max(labelHeight, valueHeight) + 4);
+
     ensurePdfSpace(doc, needed + 2);
-    doc.fillColor('#334155').text(composed, 60, doc.y, { width: textWidth, align: 'left' });
+    const y = doc.y;
+
+    doc.fillColor('#0f172a').font('Helvetica-Bold').text(labelText, rowX, y, { width: labelWidth, align: 'left' });
+    doc.fillColor('#334155').font('Helvetica').text(String(value), valueX, y, { width: valueWidth, align: 'left' });
+
+    doc.y = y + needed;
   };
 
   const grouped = schema.reduce((acc, f) => {
