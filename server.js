@@ -89,9 +89,9 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'project_number_needed', label: 'Project number applies', type: 'checkbox', section: 'General Information' },
     { key: 'project_number', label: 'Project Number', type: 'text', section: 'General Information', dependsOn: 'project_number_needed' },
 
-    { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', required: true, section: 'Section 1 – Additional Work Permits' },
-
     { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', required: true, section: 'Section 2a – Work Description' },
+
+    { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', required: true, section: 'Section 1 – Additional Work Permits' },
     { key: 'hard_hat', label: 'Hard Hat', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
     { key: 'full_sleeve_shirt', label: 'Full Sleeve Shirt', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
     { key: 'steel_toe_shoes', label: 'Steel Toe Shoes', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
