@@ -282,7 +282,18 @@ button:hover, .button:hover { background: #f3f4f6; }
 .dependent-field-disabled input,
 .dependent-field-disabled textarea,
 .dependent-field-disabled select {
-  background: #f1f5f9;
+  background: #e5e7eb !important;
+  color: #6b7280 !important;
+  border-color: #d1d5db !important;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background: #e5e7eb !important;
+  color: #6b7280 !important;
+  border-color: #d1d5db !important;
+  cursor: not-allowed;
 }
 .signoff-block {
   border: 1px dashed var(--border);
