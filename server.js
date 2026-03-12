@@ -63,7 +63,7 @@ const PERMIT_TYPE_LABELS = {
 };
 
 const TEMPLATE_TEXT_BY_TYPE = {
-  [PERMIT_TYPES.GENERAL_WORK_SAFE]: `Template: generalsafework.docx\n\nSection 1 – Additional Work Permits\n- Hot Work Permit (open flames, cutting, welding, grinding, drilling)\n- Confined Space Entry Permit (chemical vessels/tanks or confined areas)\n- Work at Height Permit (4 ft+ without guardrails)\n- Lockout/Tagout Permit (energy isolation)\n- First Break Permit (opening pipe, pumps, vessels)\n\nSection 2 – Work Description\nDescribe scope, location/building, equipment, contractor company, supervisor, shift, work order/project #.\n\nDaily Revalidation\nPermit is revalidated each day (up to 7 days max).`,
+  [PERMIT_TYPES.GENERAL_WORK_SAFE]: `Template: generalsafework.docx\n\nSection 2a – Additional Work Permits\n- Hot Work Permit (open flames, cutting, welding, grinding, drilling)\n- Confined Space Entry Permit (chemical vessels/tanks or confined areas)\n- Work at Height Permit (4 ft+ without guardrails)\n- Lockout/Tagout Permit (energy isolation)\n- First Break Permit (opening pipe, pumps, vessels)\n\nSection 1 – Work Description\nDescribe scope, location/building, equipment, contractor company, supervisor, shift, work order/project #.\n\nDaily Revalidation\nPermit is revalidated each day (up to 7 days max).`,
   [PERMIT_TYPES.HOT_WORK]: `Template: EHS&S RC Health & Safety HOT WORK PERMIT 12-14-2022.docx\n\nGeneral Information\n- General Work Permit No.\n- Work by: Sachem personnel or Contractors\n- Additional comments\n\nFire Watch Requirement\n- Fire watch required?\n- Work generates sparks/open flames (drilling/cutting/soldering/grinding/brazing/welding/torching)\n- Fire watch during work and minimum 1 hour after work\n\nHot Work Safety Requirements\n- Fire protection systems operable\n- O2/LEL monitor calibration current\n- 35 ft area clear of flammables/combustibles\n- Initial gas measurements recorded.`,
   [PERMIT_TYPES.CONFINED_SPACE]: `Template: EHS&S_RC HEALTH & SAFETY CONFINED SPACE PERMIT 08-27-2025.pdf\n\nCapture confined space entry details including:\n- Space identification and location\n- Entry purpose/scope\n- Entrants, attendant, and entry supervisor\n- Atmospheric testing (O2/LEL/toxics), frequency, and results\n- Isolation controls (LOTO, line blanking, ventilation)\n- Rescue plan and communication method\n- Entry start/end authorization signatures.`,
   [PERMIT_TYPES.LOTO]: `Templates: EHSS LOCKOUT TAG OUT PERMIT 03-20-2025.docx + Lockout Tag Out Form 06-26-2025.docx\n\nGeneral Information\n- LOTO date, expected final date (7 days max), permit linkage\n- Job scope and affected employees notified\n\nEnergy Isolation Verification\n- Electrical / Mechanical / Thermal / Chemical / Hydraulic-Pneumatic\n- Zero energy verification\n- Lock and tag IDs, isolation points, verification initials\n\nSpecial note\n- Include chemical washout verification where applicable.`,
@@ -89,9 +89,9 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'project_number_needed', label: 'Project number applies', type: 'checkbox', section: 'General Information' },
     { key: 'project_number', label: 'Project Number', type: 'text', section: 'General Information', dependsOn: 'project_number_needed' },
 
-    { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', required: true, section: 'Section 2a – Work Description' },
+    { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', required: true, section: 'Section 1 – Work Description' },
 
-    { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', required: true, section: 'Section 1 – Additional Work Permits' },
+    { key: 'confirm_no_other_permits', label: 'I confirm no other permits are needed', type: 'checkbox', required: true, section: 'Section 2a – Additional Work Permits' },
     { key: 'hard_hat', label: 'Hard Hat', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
     { key: 'full_sleeve_shirt', label: 'Full Sleeve Shirt', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
     { key: 'steel_toe_shoes', label: 'Steel Toe Shoes', type: 'checkbox', forcedTrue: true, section: 'Section 2b – PPE Required' },
@@ -977,7 +977,7 @@ function renderPermitFieldsPdf(doc, permit) {
       drawField(f.label, value);
     });
 
-    if (section === 'Section 1 – Additional Work Permits') {
+    if (section === 'Section 2a – Additional Work Permits') {
       const req = parseRequiredPermitsJson(permit.required_permits_json).map((t) => permitTypeLabel(t));
       drawField('Selected additional permits', req.length ? req.join(', ') : 'None');
     }

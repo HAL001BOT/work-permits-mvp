@@ -71,7 +71,7 @@
                        ? supervisorOptionsList
                        : (f.optionsSource === 'operators' ? operatorOptionsList : (f.options || []));
                  %>
-                  <% if (!(sectionName === 'Section 1 – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
+                  <% if (!(sectionName === 'Section 2a – Additional Work Permits' && f.key === 'confirm_no_other_permits') && !(sectionName === 'Section 3 – Hazard Evaluation' && f.key === 'mobile_equipment_cert_initials')) { %>
                     <% if (f.component === 'signoffs') { %>
                       <div class="signoff-block">
                         <label><%= f.label %></label>
@@ -120,7 +120,7 @@
 
                 <% if (sectionName === 'Section 3 – Hazard Evaluation' && fieldErrs.hazards_group) { %><small class="error"><%= fieldErrs.hazards_group %></small><% } %>
 
-                <% if (sectionName === 'Section 1 – Additional Work Permits' && currentType === 'general_work_safe') { %>
+                <% if (sectionName === 'Section 2a – Additional Work Permits' && currentType === 'general_work_safe') { %>
                   <label class="muted">Check all additional permits required for this job.</label>
                   <% supplementalPermitTypes.forEach(type => { %>
                     <label class="check-option">
