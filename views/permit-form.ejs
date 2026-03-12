@@ -245,8 +245,25 @@
           targets.forEach((input) => setDependentFieldState(input, enabled));
         };
         ctrl.addEventListener('change', sync);
+        ctrl.addEventListener('input', sync);
         sync();
       });
+
+      // Hard-wired contractor toggle (extra safety so this always works)
+      const contractorToggle = document.getElementById('pf__contractor_company_enabled');
+      const contractorCompany = document.getElementById('pf__contractor_company');
+      const contractorLead = document.getElementById('pf__contractor_lead');
+      function syncContractorFields() {
+        if (!contractorToggle) return;
+        const enabled = Boolean(contractorToggle.checked);
+        [contractorCompany, contractorLead].filter(Boolean).forEach((input) => setDependentFieldState(input, enabled));
+      }
+      if (contractorToggle) {
+        contractorToggle.addEventListener('change', syncContractorFields);
+        contractorToggle.addEventListener('input', syncContractorFields);
+        contractorToggle.addEventListener('click', syncContractorFields);
+        syncContractorFields();
+      }
 
       const signoffRows = document.getElementById('signoff-rows');
       const signoffHidden = document.getElementById('pf__team_member_signoffs');
