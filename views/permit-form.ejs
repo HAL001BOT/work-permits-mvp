@@ -65,7 +65,7 @@
                      const inputName = f.persist === 'column' ? f.key : `pf__${f.key}`;
                      const baseRequired = f.required ? '1' : '0';
                      const labelAttrs = f.dependsOn ? ` class="dependent-field" data-dependent-target="${inputId}"` : '';
-                     const controlTargets = f.key === 'contractor_company_enabled' ? 'pf__contractor_company pf__contractor_lead' : (f.key === 'project_number_needed' ? 'pf__project_number' : '');
+                     const controlTargets = f.key === 'contractor_company_enabled' ? 'pf__contractor_company pf__contractor_lead' : '';
                      const controlAttr = controlTargets ? ` data-controls="${controlTargets}"` : '';
                      const availableOptions = f.optionsSource === 'supervisors'
                        ? supervisorOptionsList

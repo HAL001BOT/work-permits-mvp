@@ -85,9 +85,7 @@ const PERMIT_FIELD_SCHEMAS = {
     { key: 'shift', label: 'Shift', type: 'select', options: ['A', 'B', 'C', 'D'], required: true, section: 'General Information' },
     { key: 'shift_supervisor', label: 'Shift Supervisor / Equivalent Rep', type: 'select', section: 'General Information', required: true, optionsSource: 'supervisors' },
     { key: 'equipment', label: 'Equipment Being Worked On', type: 'text', required: true, section: 'General Information' },
-    { key: 'work_order_number', label: 'Work Order Number', type: 'text', required: true, section: 'General Information' },
-    { key: 'project_number_needed', label: 'Project number applies', type: 'checkbox', section: 'General Information' },
-    { key: 'project_number', label: 'Project Number', type: 'text', section: 'General Information', dependsOn: 'project_number_needed' },
+    { key: 'work_order_number', label: 'Work Order / Project Number', type: 'text', required: true, section: 'General Information' },
 
     { key: 'scope_of_work', label: 'Describe the work to be completed', type: 'textarea', required: true, section: 'Section 1 – Work Description' },
 
@@ -586,8 +584,6 @@ function validatePermitFields(permitType, permitFields) {
     if (!String(permitFields.contractor_lead || '').trim()) fieldErrors.contractor_lead = 'Required';
   }
 
-  const projectNeeded = Number(permitFields.project_number_needed);
-  if (projectNeeded && !String(permitFields.project_number || '').trim()) fieldErrors.project_number = 'Required';
 
   const closeoutCompleted = Number(permitFields.closeout_completed);
   const closeoutNotCompleted = Number(permitFields.closeout_not_completed);
