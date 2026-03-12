@@ -276,8 +276,13 @@ button:hover, .button:hover { background: #f3f4f6; }
 .dependent-field {
   transition: opacity 0.2s ease;
 }
-.dependent-field-hidden {
-  display: none;
+.dependent-field-disabled {
+  opacity: 0.45;
+}
+.dependent-field-disabled input,
+.dependent-field-disabled textarea,
+.dependent-field-disabled select {
+  background: #f1f5f9;
 }
 .signoff-block {
   border: 1px dashed var(--border);

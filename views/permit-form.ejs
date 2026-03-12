@@ -221,7 +221,7 @@
       const dependencyControllers = Array.from(document.querySelectorAll('[data-controls]'));
       function setDependentFieldState(input, enabled) {
         const label = document.querySelector(`[data-dependent-target="${input.id}"]`);
-        if (label) label.classList.toggle('dependent-field-hidden', !enabled);
+        if (label) label.classList.toggle('dependent-field-disabled', !enabled);
         input.disabled = !enabled;
         if (!enabled) {
           if (input.type === 'checkbox') input.checked = false;
