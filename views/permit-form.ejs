@@ -64,7 +64,9 @@
                      const inputId = `pf__${f.key}`;
                      const inputName = f.persist === 'column' ? f.key : `pf__${f.key}`;
                      const baseRequired = f.required ? '1' : '0';
-                     const dependencyEnabled = !f.dependsOn || Number(fieldValues[f.dependsOn]);
+                     const dependencyRaw = f.dependsOn ? fieldValues[f.dependsOn] : 1;
+                     const dependencyValue = String(dependencyRaw ?? '').trim().toLowerCase();
+                     const dependencyEnabled = !f.dependsOn || dependencyValue === '1' || dependencyValue === 'true' || dependencyValue === 'on' || dependencyValue === 'yes';
                      const labelClasses = [
                        f.dependsOn ? 'dependent-field' : '',
                        (f.dependsOn && !dependencyEnabled) ? 'dependent-field-disabled' : '',
